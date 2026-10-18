@@ -1,0 +1,13 @@
+{
+  "name": "monster-pop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A cute pixel-art match-three game starring noisy little monsters.",
+  "type": "module",
+  "scripts": {
+    "start": "npx --yes http-server -c-1 -p 8080 .",
+    "test": "node --test tests/*.test.js",
+    "icons": "node tools/make-icons.mjs",
+    "sprites": "node tools/sprite-sheet.mjs sprite-sheet.png"
+  }
+}
