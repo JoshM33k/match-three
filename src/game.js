@@ -190,7 +190,7 @@ export class Game {
   /** Queue a one-time explainer for something new (if never seen). */
   introduce(kind, tile, wait = 0.7) {
     const seen = this.app.settings.seen;
-    if (seen[kind] || this.pendingTip) return;
+    if (seen[kind] || this.pendingTip || this.bonus) return;
     seen[kind] = true;
     this.app.persist();
     this.pendingTip = { kind: 'tip', t: 0, wait, what: kind, tile: { type: tile.type, special: tile.special, hp: tile.hp }, ...NEW_THINGS[kind] };
