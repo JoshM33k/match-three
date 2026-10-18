@@ -84,8 +84,8 @@ class Tile {
     if (this.hop === 0 && this.hopV === 0) this.hopV = v;
   }
 
-  tweenTo(x, y, dur) {
-    this.move = { fx: this.x, fy: this.y, tx: x, ty: y, t: 0, dur };
+  tweenTo(x, y, dur, arc = 0) {
+    this.move = { fx: this.x, fy: this.y, tx: x, ty: y, t: 0, dur, arc };
   }
 }
 
@@ -367,8 +367,16 @@ export class Game {
     if (!d || this.state !== 'idle') return;
     const dx = x - d.x;
     const dy = y - d.y;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) < this.cell * 0.4) return;
     const [r, c] = d.cell;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) < this.cell * 0.4) {
+      // lean toward the finger; the neighbour in the way looks worried
+      const horiz = Math.abs(dx) > Math.abs(dy);
+      const lim = this.cell * 0.25;
+      d.lean = horiz ? [Math.max(-lim, Math.min(lim, dx * 0.6)), 0] : [0, Math.max(-lim, Math.min(lim, dy * 0.6))];
+      const n = horiz ? this.grid[r] && this.grid[r][c + Math.sign(dx)] : this.grid[r + Math.sign(dy)] && this.grid[r + Math.sign(dy)][c];
+      if (n && Math.max(Math.abs(dx), Math.abs(dy)) > 3 && n.exprT <= 0.05) n.say('surprised', 0.25);
+      return;
+    }
     const target = Math.abs(dx) > Math.abs(dy) ? [r, c + Math.sign(dx)] : [r + Math.sign(dy), c];
     this.drag = null;
     if (target[0] < 0 || target[1] < 0 || target[0] >= ROWS || target[1] >= COLS) {
@@ -429,8 +437,8 @@ export class Game {
       return;
     }
     swapCells(this.grid, a, b);
-    ta.tweenTo(b[1], b[0], SWAP_TIME);
-    tb.tweenTo(a[1], a[0], SWAP_TIME);
+    ta.tweenTo(b[1], b[0], SWAP_TIME, 6);
+    tb.tweenTo(a[1], a[0], SWAP_TIME, -2);
     ta.say('excited', 0.4);
     tb.say('surprised', 0.4);
     this.audio.swap();
@@ -654,6 +662,12 @@ export class Game {
       });
     }
     if (combo > this.stats.bestCombo) this.stats.bestCombo = combo;
+    if (combo === 3 || combo === 5) {
+      // the whole board cheers in a wave
+      this.eachTile((t, r, c) => {
+        if (!res.cleared.has(key(r, c))) t.jumpT = 0.05 + c * 0.04 + Math.random() * 0.05;
+      });
+    }
     if (combo >= 2) {
       this.audio.combo(combo);
       this.texts.push({
@@ -995,6 +1009,13 @@ export class Game {
         t.glanceY = Math.random() < 0.8 ? 0 : Math.random() < 0.5 ? -1 : 1;
       }
       if (t.shake > 0) t.shake -= dt;
+      if (t.jumpT > 0) {
+        t.jumpT -= dt;
+        if (t.jumpT <= 0 && !t.pop && !t.falling) {
+          t.jump(-90);
+          t.say('happy', 0.5);
+        }
+      }
 
       t.squashV += (-320 * t.squash - 16 * t.squashV) * dt;
       t.squash += t.squashV * dt;
@@ -1462,8 +1483,14 @@ export class Game {
     else if (t.special === 'bomb') variant = Math.floor(this.time * 6) % 2 ? 'b0' : 'b1';
     const frame = t.type < 0 ? Math.floor(this.time * 12) % RAINBOW_FRAMES : 0;
     const spr = getSprite(t.type, expr, lx, ly, variant, frame);
-    const dx = Math.round(sx - w / 2) + ox;
+    let dx = Math.round(sx - w / 2) + ox;
     let dy = bottom - h + Math.round(t.hop);
+    if (t.move && t.move.arc) dy -= Math.round(Math.sin(Math.min(1, t.move.t / t.move.dur) * Math.PI) * t.move.arc);
+    const d = this.drag;
+    if (d && d.lean && r !== undefined && d.cell[0] === r && d.cell[1] === c) {
+      dx += Math.round(d.lean[0]);
+      dy += Math.round(d.lean[1]);
+    }
     const ghost = t.type === 4 && !t.pop && !t.falling;
     if (ghost) dy += Math.round(Math.sin(this.time * 2.2 + t.phase) * 1.4) - 1;
     if (ghost && t.quirk > 0 && !t.special) ctx.globalAlpha = 0.55;
