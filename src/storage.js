@@ -1,7 +1,15 @@
 // Progress and settings, kept in localStorage when it is available.
 const KEY = 'monster-pop.v1';
 
-const defaults = () => ({ level: 1, stars: {}, best: {}, seen: {}, sfx: true, music: true });
+const defaults = () => ({
+  level: 1,
+  stars: {},
+  best: {},
+  seen: {},
+  stats: { popped: {}, hatched: 0, bosses: 0, bestCombo: 0 },
+  sfx: true,
+  music: true,
+});
 
 export function load() {
   try {

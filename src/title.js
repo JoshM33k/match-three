@@ -23,7 +23,7 @@ export class Title {
       new Button({ label: 'PLAY', icon: 'play', x: cx - 45, y: by, w: 90, h: 22, color: '#74e06b', shade: '#3f9e4f', onClick: () => (s.level > 1 ? this.app.toMap() : this.app.play(1)) }),
       new Button({
         icon: 'music',
-        x: cx - 24,
+        x: cx - 36,
         y: by + 32,
         w: 22,
         h: 18,
@@ -36,7 +36,7 @@ export class Title {
       }),
       new Button({
         icon: 'sound',
-        x: cx + 2,
+        x: cx - 11,
         y: by + 32,
         w: 22,
         h: 18,
@@ -47,6 +47,7 @@ export class Title {
           this.layout();
         },
       }),
+      new Button({ icon: 'book', label: 'BOOK', x: cx + 14, y: by + 32, w: 36, h: 18, color: '#ffa040', shade: '#c06a20', onClick: () => this.app.toBook() }),
     ];
   }
 

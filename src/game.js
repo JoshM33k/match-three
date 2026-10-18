@@ -101,6 +101,12 @@ export class Game {
     return this.app.audio;
   }
 
+  get stats() {
+    const s = this.app.settings;
+    s.stats = s.stats || { popped: {}, hatched: 0, bosses: 0, bestCombo: 0 };
+    return s.stats;
+  }
+
   start(levelNum) {
     this.level = getLevel(levelNum);
     this.rng = makeRng(this.level.seed);
@@ -283,6 +289,7 @@ export class Game {
 
   pause() {
     if (this.overlay) return;
+    this.app.persist();
     this.overlay = { kind: 'pause', t: 0 };
     this.setButtons();
   }
@@ -567,6 +574,7 @@ export class Game {
       t.pop = { t: -delay, merge: m && delay === 0 ? { x: m[1], y: m[0] } : null, burst: false };
       maxDelay = Math.max(maxDelay, delay);
       points += 20 * combo;
+      if (t.type >= 0) this.stats.popped[t.type] = (this.stats.popped[t.type] || 0) + 1;
       const goal = this.goals.find((g) => g.type === t.type && g.left > 0);
       if (goal) {
         goal.left--;
@@ -637,6 +645,7 @@ export class Game {
         scale: points >= 300 ? 2 : 1,
       });
     }
+    if (combo > this.stats.bestCombo) this.stats.bestCombo = combo;
     if (combo >= 2) {
       this.audio.combo(combo);
       this.texts.push({
@@ -755,6 +764,7 @@ export class Game {
 
   showWin() {
     this.state = 'done';
+    if (this.boss) this.stats.bosses++;
     const stars = this.level.stars.filter((s) => this.score >= s).length;
     const s = this.app.settings;
     const n = this.level.n;
@@ -770,6 +780,7 @@ export class Game {
 
   showLose() {
     this.state = 'done';
+    this.app.persist();
     this.overlay = { kind: 'lose', t: 0 };
     this.setButtons();
     this.eachTile((t) => t.say('sad', 99));
@@ -1197,6 +1208,7 @@ export class Game {
     this.burst(t.x, t.y, '#fff4dc', 12, true);
     this.burst(t.x, t.y, '#ff8fc0', 4);
     this.score += 100;
+    this.stats.hatched++;
     this.audio.monster(t.type, 'select', 1.3, 0.05);
     const goal = this.goals.find((g) => g.type === EGG_TYPE && g.left > 0);
     if (goal) {

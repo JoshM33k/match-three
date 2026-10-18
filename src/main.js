@@ -4,6 +4,7 @@ import { Background } from './background.js';
 import { Game } from './game.js';
 import { Title } from './title.js';
 import { LevelMap } from './map.js';
+import { Book } from './book.js';
 import { load, save } from './storage.js';
 
 const canvas = document.getElementById('screen');
@@ -47,6 +48,9 @@ const app = {
   },
   toTitle() {
     this.screen = new Title(this);
+  },
+  toBook() {
+    this.screen = new Book(this);
   },
   toMap(focus) {
     this.screen = new LevelMap(this, focus);
