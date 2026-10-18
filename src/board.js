@@ -1,0 +1,402 @@
+// Pure match-three rules. Works on a grid (grid[row][col]) of tile objects
+// that have at least `type` (>= 0 for monsters, -1 for rainbow) and
+// `special` (null | 'lineH' | 'lineV' | 'bomb' | 'rainbow'). Empty cells are null.
+
+export const RAINBOW_TYPE = -1;
+
+export function makeRng(seed = Date.now()) {
+  let a = seed >>> 0;
+  return function rng() {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export const key = (r, c) => r * 64 + c;
+
+const inBounds = (grid, r, c) => r >= 0 && c >= 0 && r < grid.length && c < grid[0].length;
+
+const matchable = (t) => t && t.type >= 0;
+
+const same = (a, b) => matchable(a) && matchable(b) && a.type === b.type;
+
+/** Fill a new grid without any ready-made matches and with at least one move. */
+export function createGrid(rows, cols, numTypes, rng, makeTile) {
+  for (let attempt = 0; attempt < 200; attempt++) {
+    const grid = [];
+    for (let r = 0; r < rows; r++) {
+      grid.push([]);
+      for (let c = 0; c < cols; c++) {
+        let type;
+        do {
+          type = Math.floor(rng() * numTypes);
+        } while (
+          (c >= 2 && grid[r][c - 1].type === type && grid[r][c - 2].type === type) ||
+          (r >= 2 && grid[r - 1][c].type === type && grid[r - 2][c].type === type)
+        );
+        grid[r].push(makeTile(type));
+      }
+    }
+    if (findValidMoves(grid).length > 0) return grid;
+  }
+  throw new Error('could not build a playable grid');
+}
+
+/** All straight runs of 3+ matching tiles. */
+export function findRuns(grid) {
+  const rows = grid.length;
+  const cols = grid[0].length;
+  const runs = [];
+  for (let r = 0; r < rows; r++) {
+    let c = 0;
+    while (c < cols) {
+      let e = c + 1;
+      while (e < cols && same(grid[r][c], grid[r][e])) e++;
+      if (e - c >= 3) runs.push({ dir: 'h', type: grid[r][c].type, cells: range(c, e).map((x) => [r, x]) });
+      c = e;
+    }
+  }
+  for (let c = 0; c < cols; c++) {
+    let r = 0;
+    while (r < rows) {
+      let e = r + 1;
+      while (e < rows && same(grid[r][c], grid[e][c])) e++;
+      if (e - r >= 3) runs.push({ dir: 'v', type: grid[r][c].type, cells: range(r, e).map((y) => [y, c]) });
+      r = e;
+    }
+  }
+  return runs;
+}
+
+function range(a, b) {
+  const out = [];
+  for (let i = a; i < b; i++) out.push(i);
+  return out;
+}
+
+/**
+ * Group overlapping runs into matches and decide which special (if any)
+ * each match creates and where it appears.
+ * @param swapCells cells the player just moved; specials prefer to spawn there.
+ */
+export function findMatchGroups(grid, swapCells = []) {
+  const runs = findRuns(grid);
+  const parent = runs.map((_, i) => i);
+  const find = (i) => (parent[i] === i ? i : (parent[i] = find(parent[i])));
+  const owner = new Map();
+  runs.forEach((run, i) => {
+    for (const [r, c] of run.cells) {
+      const k = key(r, c);
+      if (owner.has(k)) parent[find(i)] = find(owner.get(k));
+      else owner.set(k, i);
+    }
+  });
+
+  const byRoot = new Map();
+  runs.forEach((run, i) => {
+    const root = find(i);
+    if (!byRoot.has(root)) byRoot.set(root, []);
+    byRoot.get(root).push(run);
+  });
+
+  const groups = [];
+  for (const groupRuns of byRoot.values()) {
+    const cellMap = new Map();
+    const hits = new Map();
+    for (const run of groupRuns) {
+      for (const [r, c] of run.cells) {
+        const k = key(r, c);
+        cellMap.set(k, [r, c]);
+        hits.set(k, (hits.get(k) || 0) + 1);
+      }
+    }
+    const cells = [...cellMap.values()];
+    const longest = groupRuns.reduce((a, b) => (b.cells.length > a.cells.length ? b : a));
+    const hasH = groupRuns.some((r) => r.dir === 'h');
+    const hasV = groupRuns.some((r) => r.dir === 'v');
+
+    let special = null;
+    if (longest.cells.length >= 5) special = 'rainbow';
+    else if (hasH && hasV) special = 'bomb';
+    else if (longest.cells.length === 4) special = longest.dir === 'h' ? 'lineV' : 'lineH';
+
+    let spawn = null;
+    if (special) {
+      const free = ([r, c]) => !grid[r][c].special;
+      const swapped = swapCells.find(([r, c]) => cellMap.has(key(r, c)) && free([r, c]));
+      const cross = cells.find(([r, c]) => hits.get(key(r, c)) > 1 && free([r, c]));
+      const mid = longest.cells[Math.floor(longest.cells.length / 2)];
+      spawn = swapped || (special === 'bomb' && cross) || (free(mid) ? mid : cells.find(free)) || null;
+      if (!spawn) special = null;
+    }
+    groups.push({ type: longest.type, cells, special, spawn });
+  }
+  return groups;
+}
+
+function matchAt(grid, r, c) {
+  const t = grid[r][c];
+  if (!matchable(t)) return false;
+  let h = 1;
+  for (let x = c - 1; x >= 0 && same(grid[r][x], t); x--) h++;
+  for (let x = c + 1; x < grid[0].length && same(grid[r][x], t); x++) h++;
+  if (h >= 3) return true;
+  let v = 1;
+  for (let y = r - 1; y >= 0 && same(grid[y][c], t); y--) v++;
+  for (let y = r + 1; y < grid.length && same(grid[y][c], t); y++) v++;
+  return v >= 3;
+}
+
+/** A swap is "special" when it fires specials directly instead of needing a match. */
+export function isSpecialSwap(a, b) {
+  if (!a || !b) return false;
+  if (a.special === 'rainbow' || b.special === 'rainbow') return true;
+  return !!(a.special && b.special);
+}
+
+export function swapCells(grid, [r1, c1], [r2, c2]) {
+  const t = grid[r1][c1];
+  grid[r1][c1] = grid[r2][c2];
+  grid[r2][c2] = t;
+}
+
+/** Whether swapping two adjacent cells makes a legal move. */
+export function isValidSwap(grid, a, b) {
+  const ta = grid[a[0]][a[1]];
+  const tb = grid[b[0]][b[1]];
+  if (!ta || !tb) return false;
+  if (isSpecialSwap(ta, tb)) return true;
+  swapCells(grid, a, b);
+  const ok = matchAt(grid, a[0], a[1]) || matchAt(grid, b[0], b[1]);
+  swapCells(grid, a, b);
+  return ok;
+}
+
+export function findValidMoves(grid) {
+  const moves = [];
+  for (let r = 0; r < grid.length; r++) {
+    for (let c = 0; c < grid[0].length; c++) {
+      for (const [dr, dc] of [[0, 1], [1, 0]]) {
+        const b = [r + dr, c + dc];
+        if (!inBounds(grid, b[0], b[1])) continue;
+        if (isValidSwap(grid, [r, c], b)) moves.push({ a: [r, c], b });
+      }
+    }
+  }
+  return moves;
+}
+
+export function mostCommonType(grid, exclude = new Set()) {
+  const counts = new Map();
+  grid.forEach((row, r) =>
+    row.forEach((t, c) => {
+      if (matchable(t) && !exclude.has(key(r, c))) counts.set(t.type, (counts.get(t.type) || 0) + 1);
+    })
+  );
+  let best = null;
+  let n = -1;
+  for (const [type, count] of counts) {
+    if (count > n) {
+      best = type;
+      n = count;
+    }
+  }
+  return best;
+}
+
+/** The effect a special tile produces when it is cleared. */
+export function effectFor(special, r, c) {
+  switch (special) {
+    case 'lineH':
+      return { kind: 'line', dir: 'h', r, c };
+    case 'lineV':
+      return { kind: 'line', dir: 'v', r, c };
+    case 'bomb':
+      return { kind: 'bomb', radius: 1, r, c };
+    case 'rainbow':
+      return { kind: 'color', type: null, r, c };
+    default:
+      return null;
+  }
+}
+
+/** Effects for swapping two tiles where isSpecialSwap() is true. */
+export function swapEffects(grid, a, b) {
+  const ta = grid[a[0]][a[1]];
+  const tb = grid[b[0]][b[1]];
+  const [r, c] = b;
+  if (ta.special === 'rainbow' && tb.special === 'rainbow') return [{ kind: 'all', r, c }];
+  if (ta.special === 'rainbow' || tb.special === 'rainbow') {
+    const [rb, other] = ta.special === 'rainbow' ? [a, tb] : [b, ta];
+    return [{ kind: 'color', type: other.type, convert: other.special || null, r: rb[0], c: rb[1] }];
+  }
+  const kinds = [ta.special, tb.special].map((s) => (s === 'bomb' ? 'bomb' : 'line'));
+  if (kinds[0] === 'bomb' && kinds[1] === 'bomb') return [{ kind: 'bomb', radius: 2, r, c }];
+  if (kinds[0] === 'line' && kinds[1] === 'line') {
+    return [
+      { kind: 'line', dir: 'h', r, c },
+      { kind: 'line', dir: 'v', r, c },
+    ];
+  }
+  return [{ kind: 'cross', width: 1, r, c }];
+}
+
+// Seconds between successive cells of an effect, and before chained effects.
+const STEP = 0.035;
+const CHAIN = 0.12;
+
+/** Cells an effect hits, each with its distance-based delay offset. */
+function effectCells(grid, e, cleared) {
+  const rows = grid.length;
+  const cols = grid[0].length;
+  const out = [];
+  const add = (r, c, d) => {
+    if (inBounds(grid, r, c) && grid[r][c]) out.push([r, c, d]);
+  };
+  switch (e.kind) {
+    case 'line':
+      if (e.dir === 'h') for (let c = 0; c < cols; c++) add(e.r, c, Math.abs(c - e.c) * STEP);
+      else for (let r = 0; r < rows; r++) add(r, e.c, Math.abs(r - e.r) * STEP);
+      break;
+    case 'cross':
+      for (let w = -e.width; w <= e.width; w++) {
+        for (let c = 0; c < cols; c++) add(e.r + w, c, Math.abs(c - e.c) * STEP);
+        for (let r = 0; r < rows; r++) add(r, e.c + w, Math.abs(r - e.r) * STEP);
+      }
+      break;
+    case 'bomb':
+      for (let r = e.r - e.radius; r <= e.r + e.radius; r++) {
+        for (let c = e.c - e.radius; c <= e.c + e.radius; c++) {
+          add(r, c, Math.max(Math.abs(r - e.r), Math.abs(c - e.c)) * STEP);
+        }
+      }
+      break;
+    case 'color': {
+      if (e.type == null) e.type = mostCommonType(grid, cleared);
+      let i = 0;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const t = grid[r][c];
+          if (t && t.type === e.type && e.type != null) add(r, c, ++i * STEP);
+        }
+      }
+      add(e.r, e.c, 0);
+      break;
+    }
+    case 'all':
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) add(r, c, (Math.abs(r - e.r) + Math.abs(c - e.c)) * STEP);
+      }
+      break;
+  }
+  return out;
+}
+
+/**
+ * Work out everything that gets cleared, following chains of specials.
+ * @param seeds      [[r, c], ...] cleared immediately
+ * @param effects    effects that start immediately
+ * @param opts.protect  keys of cells that must survive (fresh specials)
+ * @param opts.consumed keys of specials whose own effect should not fire
+ * @returns {{cleared: Map<number,{r,c,delay}>, effects: object[]}}
+ *   Each effect gets a `delay` (seconds) for staging the animation.
+ */
+export function expandClears(grid, seeds, effects = [], opts = {}) {
+  const protect = opts.protect || new Set();
+  const consumed = new Set(opts.consumed || []);
+  const cleared = new Map();
+  const fired = [];
+  const queue = effects.map((e) => ({ ...e, delay: e.delay || 0 }));
+
+  const clear = (r, c, delay) => {
+    const k = key(r, c);
+    if (protect.has(k)) return;
+    const prev = cleared.get(k);
+    if (prev) {
+      prev.delay = Math.min(prev.delay, delay);
+      return;
+    }
+    cleared.set(k, { r, c, delay });
+    const t = grid[r][c];
+    if (t && t.special && !consumed.has(k)) {
+      consumed.add(k);
+      const e = effectFor(t.special, r, c);
+      if (e) queue.push({ ...e, delay: delay + CHAIN });
+    }
+  };
+
+  for (const [r, c] of seeds) clear(r, c, 0);
+  while (queue.length) {
+    queue.sort((a, b) => a.delay - b.delay);
+    const e = queue.shift();
+    fired.push(e);
+    const exclude = new Set(cleared.keys());
+    for (const [r, c, d] of effectCells(grid, e, exclude)) {
+      if (e.convert && !grid[r][c].special && !consumed.has(key(r, c)) && !protect.has(key(r, c))) {
+        const kind = e.convert === 'bomb' ? 'bomb' : (r + c) % 2 ? 'lineH' : 'lineV';
+        const conv = effectFor(kind, r, c);
+        consumed.add(key(r, c));
+        queue.push({ ...conv, delay: e.delay + d + CHAIN });
+      }
+      clear(r, c, e.delay + d);
+    }
+  }
+  return { cleared, effects: fired };
+}
+
+/**
+ * Drop tiles into gaps and create new tiles above the board.
+ * Mutates grid. Returns every tile that needs to move with its start row
+ * (negative rows are above the board).
+ */
+export function applyGravity(grid, makeTile) {
+  const rows = grid.length;
+  const cols = grid[0].length;
+  const moves = [];
+  for (let c = 0; c < cols; c++) {
+    let write = rows - 1;
+    for (let r = rows - 1; r >= 0; r--) {
+      const t = grid[r][c];
+      if (!t) continue;
+      if (write !== r) {
+        grid[write][c] = t;
+        grid[r][c] = null;
+        moves.push({ tile: t, r: write, c, fromR: r });
+      }
+      write--;
+    }
+    const missing = write + 1;
+    for (let r = write; r >= 0; r--) {
+      const t = makeTile();
+      grid[r][c] = t;
+      moves.push({ tile: t, r, c, fromR: r - missing, spawned: true });
+    }
+  }
+  return moves;
+}
+
+/** Rearrange tiles so there are no matches and at least one move. */
+export function shuffleGrid(grid, rng) {
+  const cells = [];
+  const tiles = [];
+  grid.forEach((row, r) =>
+    row.forEach((t, c) => {
+      if (t) {
+        cells.push([r, c]);
+        tiles.push(t);
+      }
+    })
+  );
+  for (let attempt = 0; attempt < 500; attempt++) {
+    for (let i = tiles.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+    }
+    cells.forEach(([r, c], i) => (grid[r][c] = tiles[i]));
+    if (findRuns(grid).length === 0 && findValidMoves(grid).length > 0) return true;
+  }
+  return false;
+}
