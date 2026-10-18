@@ -21,10 +21,11 @@ export class Title {
     const s = this.app.settings;
     this.buttons = [
       new Button({ label: 'PLAY', icon: 'play', x: cx - 45, y: by, w: 90, h: 22, color: '#74e06b', shade: '#3f9e4f', onClick: () => (s.level > 1 ? this.app.toMap() : this.app.play(1)) }),
+      new Button({ label: 'ZEN MODE', x: cx - 45, y: by + 27, w: 90, h: 17, color: '#6cc4ff', shade: '#3f80c0', onClick: () => this.app.play('zen') }),
       new Button({
         icon: 'music',
         x: cx - 36,
-        y: by + 32,
+        y: by + 50,
         w: 22,
         h: 18,
         color: s.music ? '#6cc4ff' : '#7a6a90',
@@ -37,7 +38,7 @@ export class Title {
       new Button({
         icon: 'sound',
         x: cx - 11,
-        y: by + 32,
+        y: by + 50,
         w: 22,
         h: 18,
         color: s.sfx ? '#74e06b' : '#7a6a90',
@@ -47,7 +48,7 @@ export class Title {
           this.layout();
         },
       }),
-      new Button({ icon: 'book', label: 'BOOK', x: cx + 14, y: by + 32, w: 36, h: 18, color: '#ffa040', shade: '#c06a20', onClick: () => this.app.toBook() }),
+      new Button({ icon: 'book', label: 'BOOK', x: cx + 14, y: by + 50, w: 36, h: 18, color: '#ffa040', shade: '#c06a20', onClick: () => this.app.toBook() }),
     ];
   }
 

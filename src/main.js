@@ -47,6 +47,7 @@ const app = {
     this.screen = this.game;
   },
   toTitle() {
+    this.persist();
     this.audio.setSong('title');
     this.screen = new Title(this);
   },

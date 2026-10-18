@@ -44,3 +44,8 @@ export function getLevel(n) {
     seed: n * 104729 + Date.now(),
   };
 }
+
+/** Zen mode: endless, relaxing play with no moves limit or goals. */
+export function getZenLevel() {
+  return { n: 0, zen: true, types: 6, moves: 0, target: 0, stars: [0, 0, 0], collect: [], eggs: 0, boss: null, seed: Date.now() };
+}
