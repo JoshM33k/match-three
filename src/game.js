@@ -13,7 +13,7 @@ import {
   shuffleGrid,
   key,
 } from './board.js';
-import { getSprite, monsterColor, monsterLight, RAINBOW_COLORS, RAINBOW_FRAMES, EGG_TYPE, MONSTERS } from './sprites.js';
+import { getSprite, monsterColor, monsterLight, RAINBOW_COLORS, RAINBOW_FRAMES, EGG_TYPE, GOO_TYPE, MONSTERS } from './sprites.js';
 import { drawText, panel, roundRect, icon, iconOutlined, Button, pixelLine, pixelCircle, textWidth, wrapText, pattern, HAND } from './pixel.js';
 import { getLevel, getZenLevel, ROWS, COLS } from './levels.js';
 
@@ -37,6 +37,7 @@ const NEW_THINGS = {
   line: { title: 'BLASTER!', text: 'MATCHING 4 MADE A BLASTER. MATCH IT OR SWAP IT TO CLEAR A WHOLE LINE!' },
   bomb: { title: 'BOMB!', text: 'L AND T SHAPES MAKE BOMBS. THEY BLAST EVERY MONSTER AROUND THEM!' },
   rainbow: { title: 'RAINBOW!', text: 'MATCHING 5 MADE A RAINBOW. SWAP IT WITH ANY MONSTER TO POP EVERY ONE OF THAT KIND!' },
+  goo: { title: 'GOO!', text: 'POP MONSTERS ON TOP OF THE STICKY PINK GOO TO CLEAN IT ALL UP.' },
   egg: { title: 'EGGS!', text: "EGGS CAN'T MOVE. MATCH NEXT TO THEM TO CRACK THEM. TWO HITS AND OUT POPS A BABY!" },
 };
 
@@ -119,6 +120,8 @@ export class Game {
     this.goals = this.level.collect.map((g) => ({ ...g, left: g.count, shown: g.count, bump: 0 }));
     this.grid = createGrid(ROWS, COLS, this.level.types, this.rng, (t) => new Tile(t));
     this.placeEggs(this.level.eggs || 0);
+    this.goo = Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
+    for (const [r, c] of this.level.goo || []) this.goo[r][c] = 1;
     this.particles = [];
     this.texts = [];
     this.effects = [];
@@ -155,6 +158,7 @@ export class Game {
     this.overlay = { kind: 'intro', t: 0 };
     this.pendingTip = null;
     if (this.level.eggs) this.introduce('egg', { type: EGG_TYPE, special: null, hp: 1 }, 0.3);
+    if (this.level.goo) this.introduce('goo', { type: GOO_TYPE, special: null }, 0.3);
     this.setButtons();
   }
 
@@ -590,6 +594,15 @@ export class Game {
       maxDelay = Math.max(maxDelay, delay);
       points += 20 * combo;
       if (t.type >= 0) this.stats.popped[t.type] = (this.stats.popped[t.type] || 0) + 1;
+      if (this.goo[r][c]) {
+        this.goo[r][c] = 0;
+        const gg = this.goals.find((g) => g.type === GOO_TYPE);
+        if (gg) {
+          gg.left--;
+          this.flyers.push({ goal: gg, type: GOO_TYPE, sx: c, sy: r, t: -delay, dur: 0.5 });
+        }
+        this.burst(c, r, '#ff6fb4', 5);
+      }
       const goal = this.goals.find((g) => g.type === t.type && g.left > 0);
       if (goal) {
         goal.left--;
@@ -1370,6 +1383,7 @@ export class Game {
         ctx.fillRect(x + c * cell, y + r * cell, cell, cell);
       }
     }
+    this.drawGoo(ctx);
 
     // selection brackets
     if (this.selected) {
@@ -1398,6 +1412,38 @@ export class Game {
       this.drawSpecialBits(ctx, t, sx, sy + Math.round(t.hop));
     });
     ctx.restore();
+  }
+
+  drawGoo(ctx) {
+    const { boardX: x, boardY: y, cell } = this;
+    const has = (r, c) => r >= 0 && c >= 0 && r < ROWS && c < COLS && this.goo[r][c] > 0;
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        if (!has(r, c)) continue;
+        const cx = x + c * cell;
+        const cy = y + r * cell;
+        ctx.fillStyle = '#c23a86';
+        ctx.fillRect(cx, cy, cell, cell);
+        ctx.fillStyle = '#ff6fb4';
+        ctx.fillRect(cx + (has(r, c - 1) ? 0 : 1), cy + (has(r - 1, c) ? 0 : 1), cell - (has(r, c - 1) ? 0 : 1) - (has(r, c + 1) ? 0 : 1), cell - (has(r - 1, c) ? 0 : 1) - (has(r + 1, c) ? 0 : 2));
+        if (!has(r - 1, c)) {
+          ctx.fillStyle = '#ffb0d8';
+          ctx.fillRect(cx + 2, cy + 1, cell - 4, 1);
+        }
+        if (!has(r + 1, c)) {
+          // drips
+          ctx.fillStyle = '#c23a86';
+          const d = (r * 7 + c * 3) % (cell - 6);
+          ctx.fillRect(cx + 3 + d, cy + cell, 2, 2);
+        }
+        // a bubble pops now and then
+        const ph = (this.time * 0.7 + r * 0.37 + c * 0.61) % 3;
+        if (ph < 0.4) {
+          ctx.fillStyle = '#ffd6ec';
+          ctx.fillRect(cx + 3 + ((r + c * 5) % (cell - 7)), cy + cell - 5 - Math.floor(ph * 6), ph < 0.3 ? 2 : 1, ph < 0.3 ? 2 : 1);
+        }
+      }
+    }
   }
 
   brackets(ctx, x, y, s, color) {

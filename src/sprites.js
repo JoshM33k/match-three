@@ -9,6 +9,7 @@
 
 export const SIZE = 16;
 export const EGG_TYPE = -2;
+export const GOO_TYPE = -3;
 
 const FACE = {
   w: '#ffffff',
@@ -214,6 +215,32 @@ export const RAINBOW = {
   face: { ex: 4, ey: 6, my: 10 },
   shine: [[4, 4], [3, 5]],
 };
+// Goo is a sticky puddle under cells (only drawn as an icon via sprites).
+export const GOO = {
+  name: 'Goo',
+  colors: { o: '#6a1046', s: '#d03c8a', b: '#ff6fb4', l: '#ffb0d8', a: '#ffffff', as: '#ffffff', k: '#5a0e3a', p: '#ff3f7f' },
+  half: [
+    '........',
+    '........',
+    '........',
+    '........',
+    '.......#',
+    '......##',
+    '....####',
+    '...#####',
+    '..######',
+    '.#######',
+    '.#######',
+    '.#######',
+    '..######',
+    '...#.###',
+    '........',
+    '........',
+  ],
+  face: { ex: 4, ey: 8, my: 11 },
+  shine: [[4, 8], [7, 4]],
+};
+
 // Monster eggs are obstacles: they crack (variant 'e1') and then hatch.
 export const EGG = {
   name: 'Egg',
@@ -525,6 +552,9 @@ export function getSprite(type, expr, lx = 0, ly = 0, variant = 'n', frame = 0) 
     if (type === EGG_TYPE) {
       def = EGG;
       v = variant === 'e1' ? 'e1' : 'e2';
+    } else if (type === GOO_TYPE) {
+      def = GOO;
+      v = 'n';
     } else if (type < 0) {
       def = RAINBOW;
       v = 'rb';

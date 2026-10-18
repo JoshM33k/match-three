@@ -5,6 +5,20 @@ import { makeRng } from './board.js';
 export const ROWS = 8;
 export const COLS = 8;
 
+/** A symmetric blob of goo cells in the middle of the board. */
+function makeGoo(n, rng) {
+  const cells = new Set();
+  const want = Math.min(14, 8 + Math.floor(n / 5));
+  const k = (r, c) => r * COLS + c;
+  for (let guard = 0; cells.size < want && guard < 500; guard++) {
+    const r = 2 + Math.floor(rng() * 5);
+    const c = 1 + Math.floor(rng() * (COLS / 2 - 1));
+    cells.add(k(r, c));
+    cells.add(k(r, COLS - 1 - c));
+  }
+  return [...cells].map((v) => [Math.floor(v / COLS), v % COLS]);
+}
+
 export function getLevel(n) {
   const rng = makeRng(n * 7919);
   const types = n <= 3 ? 5 : 6;
@@ -22,7 +36,13 @@ export function getLevel(n) {
   // every fourth level from 4 has monster eggs to hatch
   const eggs = !boss && n >= 4 && n % 4 === 0 ? Math.min(12, 3 + Math.floor(n / 4)) : 0;
   if (eggs) collect.push({ type: -2, count: eggs });
-  if (!boss && n >= 2 && n % 3 !== 1 && collect.length < 2) {
+  // goo puddles to clean up on some levels
+  let goo = null;
+  if (!boss && !eggs && n >= 6 && n % 4 === 2) {
+    goo = makeGoo(n, rng);
+    collect.push({ type: -3, count: goo.length });
+  }
+  if (!boss && !goo && n >= 2 && n % 3 !== 1 && collect.length < 2) {
     const kinds = n % 3 === 0 && n >= 3 && !eggs ? 2 : 1;
     const pool = [...Array(types).keys()];
     for (let i = 0; i < kinds; i++) {
@@ -41,6 +61,7 @@ export function getLevel(n) {
     boss,
     collect,
     eggs,
+    goo,
     seed: n * 104729 + Date.now(),
   };
 }

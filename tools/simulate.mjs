@@ -8,7 +8,7 @@ import { getLevel, ROWS, COLS } from '../src/levels.js';
 
 const SPECIAL_BONUS = { lineH: 60, lineV: 60, bomb: 100, rainbow: 200 };
 
-function resolve(grid, rng, types, first, tally) {
+function resolve(grid, rng, types, first, tally, goo) {
   let score = 0;
   let combo = 1;
   let pending = first;
@@ -28,6 +28,7 @@ function resolve(grid, rng, types, first, tally) {
     for (const { r, c } of res.cleared.values()) {
       const t = grid[r][c];
       if (t && t.type >= 0) tally[t.type] = (tally[t.type] || 0) + 1;
+      goo.delete(key(r, c));
       grid[r][c] = null;
     }
     for (const g of res.groups || []) {
@@ -59,11 +60,13 @@ function firstClear(grid, a, b) {
 }
 
 /** Value of a move = tiles cleared now + a nudge for making specials. */
-function evaluate(grid, m) {
+function evaluate(grid, m, goo) {
   swapCells(grid, m.a, m.b);
   const res = firstClear(grid, m.a, m.b);
   swapCells(grid, m.a, m.b);
-  return res.cleared.size + res.groups.reduce((s, g) => s + (g.special ? 4 : 0), 0);
+  let gooHit = 0;
+  for (const k of res.cleared.keys()) if (goo.has(k)) gooHit++;
+  return res.cleared.size + gooHit * 2 + res.groups.reduce((s, g) => s + (g.special ? 4 : 0), 0);
 }
 
 export function play(n, seed, skill = 0.75) {
@@ -72,6 +75,7 @@ export function play(n, seed, skill = 0.75) {
   const grid = createGrid(ROWS, COLS, lv.types, rng, (type) => ({ type, special: null }));
   let score = 0;
   const tally = {};
+  const goo = new Set((lv.goo || []).map(([r, c]) => key(r, c)));
   for (let mv = 0; mv < lv.moves; mv++) {
     let moves = findValidMoves(grid);
     if (!moves.length) break;
@@ -79,7 +83,7 @@ export function play(n, seed, skill = 0.75) {
     if (rng() < skill) {
       let best = -1;
       for (const cand of moves) {
-        const v = evaluate(grid, cand) + rng() * 0.5;
+        const v = evaluate(grid, cand, goo) + rng() * 0.5;
         if (v > best) {
           best = v;
           m = cand;
@@ -87,16 +91,16 @@ export function play(n, seed, skill = 0.75) {
       }
     } else m = moves[Math.floor(rng() * moves.length)];
     swapCells(grid, m.a, m.b);
-    score += resolve(grid, rng, lv.types, firstClear(grid, m.a, m.b), tally);
+    score += resolve(grid, rng, lv.types, firstClear(grid, m.a, m.b), tally, goo);
   }
-  const collected = lv.collect.filter((g) => g.type >= 0).every((g) => (tally[g.type] || 0) >= g.count);
   const cleared = Object.values(tally).reduce((a, b) => a + b, 0);
+  const collected = (!lv.boss || cleared >= lv.boss.hp) && goo.size === 0 && lv.collect.filter((g) => g.type >= 0).every((g) => (tally[g.type] || 0) >= g.count);
   return { score, collected, cleared, target: lv.target, stars: lv.stars };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const games = Number(process.argv[2]) || 200;
-  for (const n of [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20, 30]) {
+  for (const n of [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 15, 18, 20, 22, 30]) {
     const scores = [];
     let wins = 0;
     for (let i = 0; i < games; i++) {
