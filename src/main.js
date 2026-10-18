@@ -82,6 +82,37 @@ const app = {
       drawText(ctx, t.st.name, x + 25, y + 14, { color: '#ffffff' });
     }
   },
+  /** Share a crisp screenshot (Web Share API, falling back to a download). */
+  async share(text) {
+    const k = 4;
+    const shot = document.createElement('canvas');
+    shot.width = this.vw * k;
+    shot.height = this.vh * k;
+    const g = shot.getContext('2d');
+    g.imageSmoothingEnabled = false;
+    g.drawImage(low, 0, 0, shot.width, shot.height);
+    const blob = await new Promise((res) => shot.toBlob(res, 'image/png'));
+    if (!blob) return;
+    const file = new File([blob], 'monster-pop.png', { type: 'image/png' });
+    const url = location.href.split('?')[0];
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], text: `${text} ${url}` });
+        return;
+      }
+      if (navigator.share) {
+        await navigator.share({ text, url });
+        return;
+      }
+    } catch {
+      return; // cancelled
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'monster-pop.png';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  },
   buzz(pattern) {
     if (this.settings.haptics !== false && navigator.vibrate) navigator.vibrate(pattern);
   },

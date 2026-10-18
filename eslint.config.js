@@ -9,7 +9,7 @@ export default [
         window: 'readonly', document: 'readonly', navigator: 'readonly', localStorage: 'readonly', location: 'readonly',
         performance: 'readonly', requestAnimationFrame: 'readonly', getComputedStyle: 'readonly', setTimeout: 'readonly',
         setInterval: 'readonly', clearInterval: 'readonly', URLSearchParams: 'readonly', CSS: 'readonly', self: 'readonly',
-        caches: 'readonly', fetch: 'readonly', console: 'readonly', process: 'readonly', Buffer: 'readonly', URL: 'readonly',
+        caches: 'readonly', fetch: 'readonly', console: 'readonly', process: 'readonly', Buffer: 'readonly', URL: 'readonly', File: 'readonly',
       },
     },
     rules: {

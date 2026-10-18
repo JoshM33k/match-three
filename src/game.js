@@ -298,6 +298,7 @@ export class Game {
           })
         ),
         btn('MAP', 'map', by + 28, '#a47bff', '#6a44b8', () => a.toMap(this.level.n + (o.kind === 'win' ? 1 : 0))),
+        btn('SHARE', 'heart', by + 50, '#ffa040', '#c06a20', () => a.share(`I beat level ${this.level.n} of Monster Pop with ${o.stars} star${o.stars === 1 ? '' : 's'}! Can you?`)),
       ];
     }
     if (o.kind === 'daily') {
@@ -2333,7 +2334,7 @@ export class Game {
       drawText(ctx, 'PAUSED', cx, y + 10, { color: '#ffffff', scale: 3, align: 'center', outline: '#140726' });
     } else if (o.kind === 'win') {
       const y = midY - 62;
-      panel(ctx, cx - 64, y, 128, 136, '#3d2a7f', '#140726', 4);
+      panel(ctx, cx - 64, y, 128, 158, '#3d2a7f', '#140726', 4);
       const bob = Math.round(Math.sin(this.time * 4) * 2);
       drawText(ctx, o.word, cx, y + 8 + bob, { color: '#ffe04a', scale: 3, align: 'center', outline: '#140726' });
       for (let i = 0; i < 3; i++) {
