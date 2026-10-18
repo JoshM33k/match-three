@@ -696,7 +696,7 @@ export class Game {
         color: '#ffa9c6',
         scale: 2,
       });
-      if (navigator.vibrate) navigator.vibrate(12);
+      this.app.buzz(12);
     }
 
     this.pending = { cleared: res.cleared, spawns };
@@ -721,6 +721,7 @@ export class Game {
       this.burst(t.x, t.y, '#ffffff', 10, true);
       this.effects.push({ kind: 'ring', r, c, t: 0, color: '#ffffff' });
       this.audio.special(1 + this.combo * 0.05);
+      this.app.buzz(18);
       this.introduce(g.special === 'lineH' || g.special === 'lineV' ? 'line' : g.special, t);
     }
     this.pending = null;
@@ -1153,6 +1154,7 @@ export class Game {
           this.audio.monster(b.type, 'sad', 0.6);
           this.audio.boom();
           this.shakeT = 0.5;
+          this.app.buzz([30, 40, 60]);
           this.bigText('BOSS DEFEATED!', '#ffe04a');
           for (let i = 0; i < 4; i++) this.burstAt(p.x, p.y, RAINBOW_COLORS[i], 8);
         }
@@ -1267,6 +1269,7 @@ export class Game {
     this.burst(t.x, t.y, '#ff8fc0', 4);
     this.score += 100;
     this.stats.hatched++;
+    this.app.buzz(15);
     this.audio.monster(t.type, 'select', 1.3, 0.05);
     const goal = this.goals.find((g) => g.type === EGG_TYPE && g.left > 0);
     if (goal) {
@@ -1355,8 +1358,9 @@ export class Game {
   // ---------------------------------------------------------------- render
 
   render(ctx) {
-    const shake = this.shakeT > 0 ? Math.round((Math.random() - 0.5) * 4 * Math.min(1, this.shakeT * 4)) : 0;
-    const shakeY = this.shakeT > 0 ? Math.round((Math.random() - 0.5) * 3 * Math.min(1, this.shakeT * 4)) : 0;
+    const shakeOn = this.app.settings.shake !== false && this.shakeT > 0;
+    const shake = shakeOn ? Math.round((Math.random() - 0.5) * 4 * Math.min(1, this.shakeT * 4)) : 0;
+    const shakeY = shakeOn ? Math.round((Math.random() - 0.5) * 3 * Math.min(1, this.shakeT * 4)) : 0;
     this.drawHud(ctx);
     ctx.save();
     ctx.translate(shake, shakeY);

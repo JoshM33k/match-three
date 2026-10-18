@@ -24,7 +24,7 @@ export class Title {
       new Button({ label: 'ZEN MODE', x: cx - 45, y: by + 27, w: 90, h: 17, color: '#6cc4ff', shade: '#3f80c0', onClick: () => this.app.play('zen') }),
       new Button({
         icon: 'music',
-        x: cx - 36,
+        x: cx - 56,
         y: by + 50,
         w: 22,
         h: 18,
@@ -37,7 +37,7 @@ export class Title {
       }),
       new Button({
         icon: 'sound',
-        x: cx - 11,
+        x: cx - 31,
         y: by + 50,
         w: 22,
         h: 18,
@@ -48,7 +48,8 @@ export class Title {
           this.layout();
         },
       }),
-      new Button({ icon: 'book', label: 'BOOK', x: cx + 14, y: by + 50, w: 36, h: 18, color: '#ffa040', shade: '#c06a20', onClick: () => this.app.toBook() }),
+      new Button({ icon: 'book', label: 'BOOK', x: cx - 6, y: by + 50, w: 36, h: 18, color: '#ffa040', shade: '#c06a20', onClick: () => this.app.toBook() }),
+      new Button({ icon: 'gear', x: cx + 33, y: by + 50, w: 22, h: 18, color: '#a47bff', shade: '#6a44b8', onClick: () => this.app.toSettings() }),
     ];
   }
 

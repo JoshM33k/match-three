@@ -5,6 +5,7 @@ import { Game } from './game.js';
 import { Title } from './title.js';
 import { LevelMap } from './map.js';
 import { Book } from './book.js';
+import { Settings } from './settings.js';
 import { load, save } from './storage.js';
 
 const canvas = document.getElementById('screen');
@@ -30,6 +31,17 @@ const app = {
 
   persist() {
     save(this.settings);
+  },
+  buzz(pattern) {
+    if (this.settings.haptics !== false && navigator.vibrate) navigator.vibrate(pattern);
+  },
+  toSettings() {
+    this.screen = new Settings(this);
+  },
+  resetProgress() {
+    const keep = { sfx: this.settings.sfx, music: this.settings.music, haptics: this.settings.haptics, shake: this.settings.shake };
+    this.settings = { ...load(true), ...keep };
+    this.persist();
   },
   toggleSfx() {
     this.settings.sfx = !this.settings.sfx;
