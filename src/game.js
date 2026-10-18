@@ -543,6 +543,7 @@ export class Game {
       tb.tweenTo(a[1], a[0], SWAP_TIME);
       ta.say('sad', 0.9);
       tb.say('sad', 0.9);
+      this.cheer('surprised', 0.6);
       ta.shake = 0.35;
       tb.shake = 0.35;
       this.audio.monster(tb.type, 'sad');
@@ -767,6 +768,7 @@ export class Game {
       });
     }
     if (combo >= 2) {
+      this.cheer(combo >= 4 ? 'laugh' : 'happy', 1.2);
       this.audio.combo(combo);
       this.texts.push({
         text: 'COMBO X' + combo,
@@ -803,6 +805,7 @@ export class Game {
       this.effects.push({ kind: 'ring', r, c, t: 0, color: '#ffffff' });
       this.audio.special(1 + this.combo * 0.05);
       this.app.buzz(18);
+      this.cheer('love', 0.8);
       for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
         const n = grid[r + dr] && grid[r + dr][c + dc];
         if (n && n.type >= 0 && !n.special) n.say('love', 0.9);
@@ -1365,6 +1368,7 @@ export class Game {
     this.audio.monster(b.type, 'match', 0.55);
     this.audio.boom();
     this.shakeT = 0.35;
+    this.cheer('surprised', 1.4);
     const kind = this.bossKind();
     const who = b.name.split(' ')[1];
     this.bigText({ eggs: who + ' ROARS!', slime: 'SLIME TIME!', scramble: who + ' STARES!', steal: 'MOVE STOLEN!' }[kind], '#ff8fa8');
@@ -1612,6 +1616,7 @@ export class Game {
     const shakeOn = this.app.settings.shake !== false && this.shakeT > 0;
     const shake = shakeOn ? Math.round((Math.random() - 0.5) * 4 * Math.min(1, this.shakeT * 4)) : 0;
     const shakeY = shakeOn ? Math.round((Math.random() - 0.5) * 3 * Math.min(1, this.shakeT * 4)) : 0;
+    this.drawCheerleaders(ctx);
     this.drawHud(ctx);
     ctx.save();
     ctx.translate(shake, shakeY);
@@ -1626,6 +1631,38 @@ export class Game {
     this.drawHand(ctx);
     this.drawBar(ctx);
     this.drawOverlay(ctx);
+  }
+
+  /** On wide screens two big monsters cheer from the sidelines. */
+  cheer(mood, t = 1) {
+    this.cheerMood = mood;
+    this.cheerT = t;
+  }
+
+  drawCheerleaders(ctx) {
+    const spare = this.boardX - 8;
+    if (spare < 44) return;
+    const size = spare >= 120 ? 64 : spare >= 80 ? 48 : 32;
+    if (this.cheerT > 0) this.cheerT -= 1 / 60;
+    let mood = this.cheerT > 0 ? this.cheerMood : null;
+    if (this.state === 'done') mood = this.overlay && this.overlay.kind === 'lose' ? 'sad' : 'happy';
+    const types = [(this.level.n + 1) % 6, (this.level.n + 4) % 6];
+    types.forEach((type, i) => {
+      const cx = i === 0 ? Math.floor(spare / 2) + 2 : this.app.vw - Math.floor(spare / 2) - 2;
+      const ground = this.boardY + Math.floor(this.bh * 0.75);
+      let expr = mood || (Math.floor(this.time * 0.8 + i * 2.3) % 5 === 0 ? 'blink' : 'idle');
+      let hop = 0;
+      if (mood === 'laugh' || mood === 'happy') hop = Math.round(Math.min(0, Math.sin(this.time * 9 + i * 1.5)) * 10);
+      if (!mood) hop = Math.round(Math.min(0, Math.sin(this.time * 2 + i * 3)) * 2);
+      const p = this.app.pointer;
+      const lx = !mood && p.active ? Math.sign(Math.round((p.x - cx) / 40)) : 0;
+      ctx.fillStyle = 'rgba(20,5,40,0.35)';
+      ctx.fillRect(cx - Math.floor(size / 3), ground, Math.floor((size * 2) / 3), 3);
+      const x = cx - size / 2;
+      const y = ground - size + 2 + hop;
+      ctx.drawImage(getSprite(type, expr, lx, 0), x, y, size, size);
+      if (this.app.settings.hat) drawHat(ctx, this.app.settings.hat, type, x, y, size, size);
+    });
   }
 
   tileScreen(t) {
