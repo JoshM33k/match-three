@@ -2040,7 +2040,7 @@ export class Game {
         ctx.fillStyle = fade > 0.5 ? p.color : 'rgba(244,236,255,0.5)';
         ctx.fillRect(x - (s >> 1), y - (s >> 1), s, s);
       } else if (p.kind === 'z') {
-        drawText(ctx, 'z', x + Math.round(Math.sin(p.life * 4) * 2), y, { color: 'rgba(255,255,255,' + fade.toFixed(2) + ')' });
+        drawText(ctx, 'z', x + Math.round(Math.sin(p.life * 4) * 2), y, { color: 'rgba(255,255,255,' + fade.toFixed(1) + ')' });
       }
     }
   }

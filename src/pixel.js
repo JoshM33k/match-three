@@ -78,37 +78,44 @@ export function textWidth(text, scale = 1) {
   return Math.max(0, w - 1) * scale;
 }
 
-const textCache = new Map();
+// Glyphs are rendered once per colour/scale/outline and then stamped, so
+// changing numbers (like a counting score) never create new canvases.
+const glyphCache = new Map();
 
-function renderText(text, color, scale, outline) {
+function renderGlyph(ch, color, scale, outline) {
+  const rows = glyph(ch);
   const pad = outline ? 1 : 0;
-  const w = textWidth(text, scale) + pad * 2;
+  const w = rows[0].length * scale + pad * 2;
   const h = GLYPH_H * scale + pad * 2 + (outline ? 1 : 0);
   const c = document.createElement('canvas');
-  c.width = Math.max(1, w);
+  c.width = w;
   c.height = h;
   const g = c.getContext('2d');
   const draw = (ox, oy, col) => {
     g.fillStyle = col;
-    let x = ox;
-    for (const ch of text) {
-      const rows = glyph(ch);
-      for (let r = 0; r < GLYPH_H; r++) {
-        for (let i = 0; i < rows[r].length; i++) {
-          if (rows[r][i] === '#') g.fillRect(x + i * scale, oy + r * scale, scale, scale);
-        }
+    for (let r = 0; r < GLYPH_H; r++) {
+      for (let i = 0; i < rows[r].length; i++) {
+        if (rows[r][i] === '#') g.fillRect(ox + i * scale, oy + r * scale, scale, scale);
       }
-      x += (rows[0].length + 1) * scale;
     }
   };
   if (outline) {
     // drop shadow then a 1px outline all round
     draw(pad, pad + 2, outline);
-    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-      draw(pad + dx, pad + dy, outline);
-    }
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]]) draw(pad + dx, pad + dy, outline);
   }
   draw(pad, pad, color);
+  return c;
+}
+
+function glyphCanvas(ch, color, scale, outline) {
+  const k = `${ch}|${color}|${scale}|${outline}`;
+  let c = glyphCache.get(k);
+  if (!c) {
+    if (glyphCache.size > 3000) glyphCache.clear();
+    c = renderGlyph(ch, color, scale, outline);
+    glyphCache.set(k, c);
+  }
   return c;
 }
 
@@ -118,19 +125,19 @@ function renderText(text, color, scale, outline) {
  */
 export function drawText(ctx, text, x, y, { color = '#ffffff', scale = 1, align = 'left', outline = null } = {}) {
   text = String(text).toUpperCase();
-  const k = `${text}|${color}|${scale}|${outline}`;
-  let c = textCache.get(k);
-  if (!c) {
-    if (textCache.size > 400) textCache.clear();
-    c = renderText(text, color, scale, outline);
-    textCache.set(k, c);
-  }
   const pad = outline ? 1 : 0;
+  const width = textWidth(text, scale) + pad * 2;
   let dx = x - pad;
-  if (align === 'center') dx = x - Math.floor(c.width / 2);
-  else if (align === 'right') dx = x - c.width + pad;
-  ctx.drawImage(c, Math.round(dx), Math.round(y - pad));
-  return c.width;
+  if (align === 'center') dx = x - Math.floor(width / 2);
+  else if (align === 'right') dx = x - width + pad;
+  dx = Math.round(dx);
+  const dy = Math.round(y - pad);
+  for (const ch of text) {
+    const rows = glyph(ch);
+    if (ch !== ' ') ctx.drawImage(glyphCanvas(ch, color, scale, outline), dx, dy);
+    dx += (rows[0].length + 1) * scale;
+  }
+  return width;
 }
 
 /** Rounded pixel rectangle with an optional 1px border. */
