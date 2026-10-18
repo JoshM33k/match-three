@@ -115,6 +115,7 @@ export class Game {
     this.zen = !!this.level.zen;
     this.daily = !!this.level.daily;
     this.milestone = 5000;
+    this.usedExtra = false;
     this.rng = makeRng(this.level.seed);
     this.score = 0;
     this.shownScore = 0;
@@ -282,10 +283,12 @@ export class Game {
       ];
     }
     if (o.kind === 'lose') {
-      return [
-        btn('RETRY', 'retry', by + 6, '#ff7eb6', '#c2407e', () => this.start(this.levelId)),
-        btn('MAP', 'map', by + 28, '#a47bff', '#6a44b8', () => a.toMap(this.level.n + (o.kind === 'win' ? 1 : 0))),
-      ];
+      const y0 = this.boardY + Math.floor(this.bh / 2) - 2;
+      const list = [];
+      if (!this.usedExtra) list.push(btn('+5 MOVES', 'heart', y0, '#74e06b', '#3f9e4f', () => this.extraMoves()));
+      list.push(btn('RETRY', 'retry', y0 + list.length * 22, '#ff7eb6', '#c2407e', () => this.start(this.levelId)));
+      list.push(btn('MAP', 'map', y0 + list.length * 22, '#a47bff', '#6a44b8', () => a.toMap(this.level.n)));
+      return list;
     }
     if (o.kind === 'pause') {
       const y0 = this.boardY + 44;
@@ -868,6 +871,24 @@ export class Game {
     this.eachTile((t) => t.say('happy', 99));
     this.audio.win();
     this.confetti();
+  }
+
+  /** A one-off monster snack: five more moves to finish the level. */
+  extraMoves() {
+    this.usedExtra = true;
+    this.moves += 5;
+    this.overlay = null;
+    this.setButtons();
+    this.eachTile((t) => {
+      t.expr = null;
+      t.exprT = 0;
+      t.say('excited', 0.8);
+      t.jumpT = 0.05 + Math.random() * 0.3;
+    });
+    this.bigText('+5 MOVES!', '#74e06b');
+    this.audio.special(1.1);
+    this.state = 'idle';
+    this.idleT = 0;
   }
 
   showLose() {
@@ -2087,16 +2108,40 @@ export class Game {
         ctx.drawImage(getSprite(i % 6, 'happy'), cx - Math.min(5, o.streak) * 10 + i * 20 + 2, y + 68 + hop);
       }
     } else if (o.kind === 'lose') {
-      const y = midY - 62;
-      panel(ctx, cx - 64, y, 128, 136, '#3d2a7f', '#140726', 4);
-      drawText(ctx, 'OUT OF', cx, y + 7, { color: '#ff8fa8', scale: 2, align: 'center', outline: '#140726' });
-      drawText(ctx, 'MOVES!', cx, y + 20, { color: '#ff8fa8', scale: 2, align: 'center', outline: '#140726' });
+      const y = midY - 74;
+      const h = 78 + this.overlayButtons.length * 22;
+      panel(ctx, cx - 66, y, 132, h, '#3d2a7f', '#140726', 4);
+      // how close was it?
+      const parts = [Math.min(1, this.score / Math.max(1, this.level.target))];
+      for (const g of this.goals) parts.push(1 - Math.max(0, g.left) / g.count);
+      if (this.boss) parts.push(1 - this.boss.hp / this.boss.max);
+      const progress = parts.reduce((a, b) => a + b, 0) / parts.length;
+      const close = progress >= 0.8;
+      drawText(ctx, close ? 'SO CLOSE!' : 'OUT OF MOVES!', cx, y + 7, { color: '#ff8fa8', scale: 2, align: 'center', outline: '#140726' });
       const type = this.level.n % 6;
       const s = getSprite(type, Math.floor(this.time * 1.5) % 4 === 3 ? 'blink' : 'sad');
-      ctx.drawImage(s, cx - 16, y + 32, 32, 32);
+      ctx.drawImage(s, cx - 12, y + 21, 24, 24);
       if (Math.floor(this.time * 2) % 2) {
         ctx.fillStyle = '#8fe3ff';
-        ctx.fillRect(cx - 9, y + 62, 2, 2);
+        ctx.fillRect(cx - 7, y + 43, 2, 2);
+      }
+      let line = y + 50;
+      if (this.boss) {
+        drawText(ctx, this.boss.name + ' HP ' + this.boss.hp, cx, line, { color: '#ffffff', align: 'center' });
+        line += 9;
+      } else {
+        const sc = this.score >= this.level.target ? '#74e06b' : '#ffffff';
+        drawText(ctx, 'SCORE ' + this.score + '/' + this.level.target, cx, line, { color: sc, align: 'center' });
+        line += 9;
+      }
+      const left = this.goals.filter((g) => g.left > 0);
+      if (left.length) {
+        const wTot = left.length * 30;
+        left.forEach((g, i) => {
+          const gx = cx - Math.floor(wTot / 2) + i * 30;
+          ctx.drawImage(getSprite(g.type, 'sad'), gx, line - 4, 12, 12);
+          drawText(ctx, String(g.left), gx + 14, line, { color: '#ff8fa8' });
+        });
       }
     }
     for (const b of this.overlayButtons) b.draw(ctx, this.time);
