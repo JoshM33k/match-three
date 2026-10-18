@@ -147,6 +147,7 @@ export class Game {
       : null;
     this.zings = [];
     this.moveDone = false;
+    this.audio.setFlavor(worldFor(this.level.n || 1));
     this.audio.setSong(this.boss ? 'boss' : 'game');
     this.layout();
 

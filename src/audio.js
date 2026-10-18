@@ -450,6 +450,18 @@ export class Sound {
     this.music.timer = null;
   }
 
+  /** Per-world twist on the gameplay tune: key, tempo and lead voice. */
+  setFlavor(world) {
+    const F = [
+      { transpose: 0, bpm: 1, lead: null },
+      { transpose: 2, bpm: 0.95, lead: 'triangle', lp: 3000 },
+      { transpose: -3, bpm: 0.85, lead: 'sine', lp: 4000 },
+      { transpose: 5, bpm: 1.08, lead: 'square', lp: 3000 },
+      { transpose: -5, bpm: 1.04, lead: 'sawtooth', lp: 1500 },
+    ];
+    this.music.flavor = F[world % F.length];
+  }
+
   /** Switch tune; the change happens at the start of the next bar. */
   setSong(name) {
     if (!SONGS[name] || this.music.want === name) return;
@@ -466,19 +478,20 @@ export class Sound {
         this.music.step = 0;
       }
       const song = SONGS[this.music.song || 'title'];
-      const stepDur = 60 / song.bpm / 2;
+      const fl = (this.music.song === 'game' && this.music.flavor) || { transpose: 0, bpm: 1 };
+      const stepDur = 60 / (song.bpm * fl.bpm) / 2;
       const s = this.music.step % 32;
       const loop = Math.floor(this.music.step / 32);
       const when = this.music.next - ctx.currentTime;
       const bar = Math.floor(s / 8);
       const b = song.bass[s % 8];
       if (b !== null) {
-        this.tone({ wave: 'triangle', f: [[0, midi(song.roots[bar] + b)]], dur: stepDur * 0.9, vol: 0.5 }, 1, when, this.musicBus);
+        this.tone({ wave: 'triangle', f: [[0, midi(song.roots[bar] + b + fl.transpose)]], dur: stepDur * 0.9, vol: 0.5 }, 1, when, this.musicBus);
       }
       const n = song.mel[s];
       if (n && loop % 4 !== 3) {
         const up = song.octaveUp && loop % 2 ? 12 : 0;
-        this.tone({ wave: song.lead, f: [[0, midi(n + up)]], dur: stepDur * 0.8, vol: song.leadVol, lp: song.lp }, 1, when, this.musicBus);
+        this.tone({ wave: fl.lead || song.lead, f: [[0, midi(n + up + fl.transpose)]], dur: stepDur * 0.8, vol: song.leadVol, lp: fl.lp || song.lp }, 1, when, this.musicBus);
       }
       if (s % 2 === 1 || (song.drive && s % 8 === 0)) {
         const t0 = ctx.currentTime + when;
