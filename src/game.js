@@ -837,11 +837,12 @@ export class Game {
     const s = this.app.settings;
     const n = this.level.n;
     s.stars[n] = Math.max(s.stars[n] || 0, stars);
-    s.best[n] = Math.max(s.best[n] || 0, this.score);
+    const prevBest = s.best[n] || 0;
+    s.best[n] = Math.max(prevBest, this.score);
     s.level = Math.max(s.level, n + 1);
     this.app.persist();
     this.app.checkStickers();
-    this.overlay = { kind: 'win', t: 0, stars, shown: 0, word: this.boss ? 'VICTORY!' : WIN_WORDS[n % WIN_WORDS.length], best: s.best[n] };
+    this.overlay = { kind: 'win', t: 0, stars, shown: 0, word: this.boss ? 'VICTORY!' : WIN_WORDS[n % WIN_WORDS.length], best: s.best[n], newBest: this.score > prevBest && prevBest > 0, count: 0, starT: [] };
     this.setButtons();
     this.eachTile((t) => t.say('happy', 99));
     this.confetti();
@@ -981,9 +982,21 @@ export class Game {
         this.overlay = null;
         this.setButtons();
       }
-      if (o.kind === 'win' && o.shown < o.stars && o.t > 0.6 + o.shown * 0.4) {
-        this.audio.star(o.shown);
-        o.shown++;
+      if (o.kind === 'win') {
+        // count the score up, then land the stars one by one
+        const before = o.count;
+        o.count = Math.min(this.score, Math.round(this.score * Math.min(1, o.t / 0.9)));
+        if (Math.floor(o.count / 250) !== Math.floor(before / 250)) this.audio.pop(1.5 + (o.count / Math.max(1, this.score)) * 0.6);
+        if (o.shown < o.stars && o.t > 1.0 + o.shown * 0.45) {
+          this.audio.star(o.shown);
+          o.starT[o.shown] = o.t;
+          const sx = Math.floor(this.app.vw / 2) - 34 + o.shown * 25 + 9;
+          const sy = this.boardY + Math.floor(this.bh / 2) - 62 + 39;
+          this.burstAt(sx, sy, '#ffe04a', 10);
+          this.burstAt(sx, sy, '#ffffff', 4);
+          this.shakeT = Math.max(this.shakeT, 0.12);
+          o.shown++;
+        }
       }
       if (o.kind === 'pause' || o.kind === 'tip') return;
     } else if (this.pendingTip && this.state !== 'done') {
@@ -2080,15 +2093,19 @@ export class Game {
       for (let i = 0; i < 3; i++) {
         const sx = cx - 34 + i * 25;
         const lit = i < o.shown;
-        const sy = y + 30 + (i === 1 ? -3 : 0);
+        let sy = y + 30 + (i === 1 ? -3 : 0);
+        // freshly landed stars slam down from above
+        const since = lit ? o.t - o.starT[i] : 1;
+        if (since < 0.15) sy -= Math.round((1 - since / 0.15) * 10);
         iconOutlined(ctx, 'bigstar', sx, sy, lit ? '#ffe04a' : '#5a4a78', '#140726', 2);
         if (lit) {
           ctx.fillStyle = '#fff6b0';
           ctx.fillRect(sx + 8, sy + 6, 2, 2);
         }
       }
-      drawText(ctx, 'SCORE ' + this.score, cx, y + 54, { color: '#ffffff', align: 'center' });
-      drawText(ctx, 'BEST ' + o.best, cx, y + 62, { color: '#c9b6ff', align: 'center' });
+      drawText(ctx, 'SCORE ' + o.count, cx, y + 54, { color: '#ffffff', align: 'center' });
+      if (o.newBest && o.t > 1 && Math.floor(this.time * 3) % 2) drawText(ctx, 'NEW BEST!', cx, y + 62, { color: '#ffe04a', align: 'center' });
+      else drawText(ctx, 'BEST ' + o.best, cx, y + 62, { color: '#c9b6ff', align: 'center' });
       // a little conga line of happy monsters
       for (let i = 0; i < 5; i++) {
         const type = (this.level.n + i) % 6;
