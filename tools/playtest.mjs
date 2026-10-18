@@ -28,6 +28,7 @@ const settle = () =>
 
 for (const n of levels) {
   await page.evaluate((n) => window.__monsterPop.play(n), n);
+  await page.waitForTimeout(450); // screen wipe
   let moves = 0;
   for (;;) {
     const st = await settle();
@@ -52,6 +53,7 @@ for (const n of levels) {
 const combos = [['rainbow', 'rainbow'], ['rainbow', 'bomb'], ['rainbow', 'lineH'], ['bomb', 'bomb'], ['lineH', 'lineV'], ['bomb', 'lineV'], ['rainbow', null], ['pal', 'pal'], ['pal', 'bomb'], ['rainbow', 'pal'], ['pal', null]];
 for (const [a, b] of combos) {
   await page.evaluate((l) => window.__monsterPop.play(l), levels[levels.length - 1]);
+  await page.waitForTimeout(450);
   await settle();
   await page.evaluate(([s1, s2]) => {
     const g = window.__monsterPop.game;

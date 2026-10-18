@@ -287,16 +287,18 @@ export class Game {
       new Button({ label, icon: ic, x: cx - Math.floor(w / 2), y: yy, w, h: 18, color, shade, onClick });
     if (o.kind === 'win') {
       return [
-        btn('NEXT', 'play', by + 6, '#74e06b', '#3f9e4f', () => {
-          a.setWorld(this.level.n + 1);
-          this.start(this.level.n + 1);
-        }),
+        btn('NEXT', 'play', by + 6, '#74e06b', '#3f9e4f', () =>
+          a.transition(() => {
+            a.setWorld(this.level.n + 1);
+            this.start(this.level.n + 1);
+          })
+        ),
         btn('MAP', 'map', by + 28, '#a47bff', '#6a44b8', () => a.toMap(this.level.n + (o.kind === 'win' ? 1 : 0))),
       ];
     }
     if (o.kind === 'daily') {
       return [
-        btn('AGAIN', 'retry', by + 6, '#ffa040', '#c06a20', () => this.start('daily')),
+        btn('AGAIN', 'retry', by + 6, '#ffa040', '#c06a20', () => a.transition(() => this.start('daily'))),
         btn('MENU', 'home', by + 28, '#a47bff', '#6a44b8', () => a.toTitle()),
       ];
     }
@@ -304,7 +306,7 @@ export class Game {
       const y0 = this.boardY + Math.floor(this.bh / 2) - 2;
       const list = [];
       if (!this.usedExtra) list.push(btn('+5 MOVES', 'heart', y0, '#74e06b', '#3f9e4f', () => this.extraMoves()));
-      list.push(btn('RETRY', 'retry', y0 + list.length * 22, '#ff7eb6', '#c2407e', () => this.start(this.levelId)));
+      list.push(btn('RETRY', 'retry', y0 + list.length * 22, '#ff7eb6', '#c2407e', () => a.transition(() => this.start(this.levelId))));
       list.push(btn('MAP', 'map', y0 + list.length * 22, '#a47bff', '#6a44b8', () => a.toMap(this.level.n)));
       return list;
     }
@@ -312,7 +314,7 @@ export class Game {
       const y0 = this.boardY + 44;
       return [
         btn('RESUME', 'play', y0, '#74e06b', '#3f9e4f', () => this.resume()),
-        btn('RESTART', 'retry', y0 + 22, '#ffa040', '#c06a20', () => this.start(this.levelId)),
+        btn('RESTART', 'retry', y0 + 22, '#ffa040', '#c06a20', () => a.transition(() => this.start(this.levelId))),
         btn(a.settings.music ? 'MUSIC ON' : 'MUSIC OFF', 'music', y0 + 44, '#6cc4ff', '#3f80c0', () => {
           a.toggleMusic();
           this.setButtons();

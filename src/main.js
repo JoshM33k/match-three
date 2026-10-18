@@ -128,6 +128,49 @@ const app = {
   },
 };
 
+// Screen changes go through a quick dithered pixel wipe.
+const direct = {};
+for (const name of ['play', 'toTitle', 'toBook', 'toMap', 'toSettings']) {
+  direct[name] = app[name].bind(app);
+  app[name] = (...args) => app.transition(() => direct[name](...args));
+}
+const BAYER4 = [
+  [0, 8, 2, 10],
+  [12, 4, 14, 6],
+  [3, 11, 1, 9],
+  [15, 7, 13, 5],
+];
+const WIPE = 0.2;
+app.transition = function (fn) {
+  if (this.wipe) {
+    fn();
+    return;
+  }
+  this.wipe = { t: 0, fn };
+};
+app.drawWipe = function (ctx, dt) {
+  const w = this.wipe;
+  if (!w) return;
+  w.t += dt;
+  if (w.fn && w.t >= WIPE) {
+    const fn = w.fn;
+    w.fn = null;
+    fn();
+  }
+  const cover = w.t < WIPE ? w.t / WIPE : 1 - (w.t - WIPE) / WIPE;
+  if (w.t >= WIPE * 2) {
+    this.wipe = null;
+    return;
+  }
+  ctx.fillStyle = '#1a0b2e';
+  const n = cover * 16;
+  for (let y = 0; y < this.vh; y += 4) {
+    for (let x = 0; x < this.vw; x += 4) {
+      if (BAYER4[(y >> 2) & 3][(x >> 2) & 3] < n) ctx.fillRect(x, y, 4, 4);
+    }
+  }
+};
+
 app.audio.sfxOn = app.settings.sfx;
 app.audio.musicOn = app.settings.music;
 
@@ -182,7 +225,7 @@ canvas.addEventListener('pointerdown', (e) => {
   canvas.setPointerCapture?.(e.pointerId);
   const p = toVirtual(e);
   Object.assign(app.pointer, p, { active: true, down: true, lastMove: performance.now() });
-  app.screen.pointerDown(p.x, p.y);
+  if (!app.wipe) app.screen.pointerDown(p.x, p.y);
 });
 canvas.addEventListener('pointermove', (e) => {
   const p = toVirtual(e);
@@ -231,12 +274,13 @@ function frame(now) {
   app.background.draw(ctx, time);
   app.screen.render(ctx);
   app.drawToasts(ctx, real * speed);
+  app.drawWipe(ctx, real);
   if (!cssScaling) display.drawImage(low, app.ox, app.oy, app.vw * app.scale, app.vh * app.scale);
   requestAnimationFrame(frame);
 }
 
 resize();
-app.toTitle();
+direct.toTitle();
 window.__monsterPop = app; // handy for debugging from the console
 requestAnimationFrame(frame);
 
