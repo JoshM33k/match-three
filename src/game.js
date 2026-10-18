@@ -136,6 +136,7 @@ export class Game {
       : null;
     this.zings = [];
     this.moveDone = false;
+    this.audio.setSong(this.boss ? 'boss' : 'game');
     this.layout();
 
     // Monsters tumble in from the top, column by column.

@@ -47,12 +47,15 @@ const app = {
     this.screen = this.game;
   },
   toTitle() {
+    this.audio.setSong('title');
     this.screen = new Title(this);
   },
   toBook() {
+    this.audio.setSong('title');
     this.screen = new Book(this);
   },
   toMap(focus) {
+    this.audio.setSong('title');
     this.screen = new LevelMap(this, focus);
   },
 };

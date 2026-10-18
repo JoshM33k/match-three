@@ -61,6 +61,41 @@ const VOICES = [
   },
 ];
 
+// Four-bar loops of eighth notes (MIDI numbers, 0 = rest).
+const SONGS = {
+  title: {
+    bpm: 116,
+    lead: 'square',
+    leadVol: 0.16,
+    lp: 2400,
+    octaveUp: true,
+    roots: [48, 45, 41, 43],
+    bass: [0, null, 12, null, 7, null, 12, 7],
+    mel: [72, 0, 76, 79, 76, 0, 74, 72, 69, 0, 72, 76, 74, 72, 69, 0, 65, 69, 72, 0, 74, 72, 69, 67, 67, 0, 71, 74, 79, 0, 77, 74],
+  },
+  game: {
+    bpm: 124,
+    lead: 'square',
+    leadVol: 0.13,
+    lp: 2000,
+    octaveUp: false,
+    roots: [43, 40, 48, 50],
+    bass: [0, null, 7, 12, null, 7, 12, null],
+    mel: [79, 0, 78, 76, 74, 0, 76, 79, 76, 0, 74, 71, 72, 74, 76, 0, 72, 76, 79, 0, 81, 79, 76, 74, 74, 0, 78, 81, 78, 0, 74, 0],
+  },
+  boss: {
+    bpm: 144,
+    lead: 'sawtooth',
+    leadVol: 0.1,
+    lp: 1800,
+    octaveUp: false,
+    drive: true,
+    roots: [45, 41, 43, 40],
+    bass: [0, 12, 0, 12, 0, 12, 7, 12],
+    mel: [69, 72, 76, 72, 81, 0, 79, 76, 77, 0, 76, 72, 74, 0, 72, 69, 71, 74, 79, 74, 83, 0, 81, 79, 76, 0, 80, 83, 88, 0, 83, 80],
+  },
+};
+
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
 export class Sound {
@@ -69,7 +104,7 @@ export class Sound {
     this.sfxOn = true;
     this.musicOn = true;
     this.lastPlayed = new Map();
-    this.music = { step: 0, next: 0, timer: null };
+    this.music = { step: 0, next: 0, timer: null, song: 'title', want: 'title' };
   }
 
   /** Must be called from a user gesture before anything is audible. */
@@ -337,50 +372,53 @@ export class Sound {
     this.music.timer = null;
   }
 
+  /** Switch tune; the change happens at the start of the next bar. */
+  setSong(name) {
+    if (!SONGS[name] || this.music.want === name) return;
+    this.music.want = name;
+  }
+
   scheduleMusic() {
     const ctx = this.ctx;
     if (ctx.state !== 'running') return;
-    const stepDur = 60 / 116 / 2;
-    // Melody (MIDI notes, 0 = rest), 4 bars of eighth notes.
-    const mel = [
-      72, 0, 76, 79, 76, 0, 74, 72,
-      69, 0, 72, 76, 74, 72, 69, 0,
-      65, 69, 72, 0, 74, 72, 69, 67,
-      67, 0, 71, 74, 79, 0, 77, 74,
-    ];
-    const roots = [48, 45, 41, 43];
-    const bassPat = [0, null, 12, null, 7, null, 12, 7];
     if (this.music.next < ctx.currentTime) this.music.next = ctx.currentTime + 0.05;
     while (this.music.next < ctx.currentTime + 0.15) {
+      if (this.music.step % 8 === 0 && this.music.want && this.music.want !== this.music.song) {
+        this.music.song = this.music.want;
+        this.music.step = 0;
+      }
+      const song = SONGS[this.music.song || 'title'];
+      const stepDur = 60 / song.bpm / 2;
       const s = this.music.step % 32;
       const loop = Math.floor(this.music.step / 32);
       const when = this.music.next - ctx.currentTime;
       const bar = Math.floor(s / 8);
-      const b = bassPat[s % 8];
+      const b = song.bass[s % 8];
       if (b !== null) {
-        this.tone({ wave: 'triangle', f: [[0, midi(roots[bar] + b)]], dur: stepDur * 0.9, vol: 0.5 }, 1, when, this.musicBus);
+        this.tone({ wave: 'triangle', f: [[0, midi(song.roots[bar] + b)]], dur: stepDur * 0.9, vol: 0.5 }, 1, when, this.musicBus);
       }
-      const n = mel[s];
+      const n = song.mel[s];
       if (n && loop % 4 !== 3) {
-        const up = loop % 2 ? 12 : 0;
-        this.tone({ wave: 'square', f: [[0, midi(n + up)]], dur: stepDur * 0.8, vol: 0.16, lp: 2400 }, 1, when, this.musicBus);
+        const up = song.octaveUp && loop % 2 ? 12 : 0;
+        this.tone({ wave: song.lead, f: [[0, midi(n + up)]], dur: stepDur * 0.8, vol: song.leadVol, lp: song.lp }, 1, when, this.musicBus);
       }
-      if (s % 2 === 1) {
+      if (s % 2 === 1 || (song.drive && s % 8 === 0)) {
         const t0 = ctx.currentTime + when;
         const src = ctx.createBufferSource();
         src.buffer = this.noiseBuf;
         const hp = ctx.createBiquadFilter();
-        hp.type = 'highpass';
-        hp.frequency.value = 7000;
+        hp.type = s % 2 ? 'highpass' : 'lowpass';
+        hp.frequency.value = s % 2 ? 7000 : 400;
         const env = ctx.createGain();
-        env.gain.setValueAtTime(0.12, t0);
-        env.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.04);
+        env.gain.setValueAtTime(s % 2 ? 0.12 : 0.5, t0);
+        env.gain.exponentialRampToValueAtTime(0.0001, t0 + (s % 2 ? 0.04 : 0.12));
         src.connect(hp).connect(env).connect(this.musicBus);
         src.start(t0, Math.random() * 0.5);
-        src.stop(t0 + 0.05);
+        src.stop(t0 + 0.15);
       }
       this.music.next += stepDur;
       this.music.step++;
     }
   }
+
 }
