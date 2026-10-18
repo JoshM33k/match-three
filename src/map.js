@@ -6,6 +6,30 @@ import { drawHat } from './hats.js';
 import { drawText, Button, icon, iconOutlined, fillCircle, panel, pattern } from './pixel.js';
 
 const SPACING = 38;
+
+// Little props scattered beside the path, per world.
+const PROPS = [
+  [
+    { rows: ['.rrr.', 'rwrwr', '..w..', '..w..'], colors: { r: '#ff5a7a', w: '#fff4dc' } },
+    { rows: ['.pp.', 'pppp', '.ww.'], colors: { p: '#a47bff', w: '#fff4dc' } },
+  ],
+  [
+    { rows: ['.p.', 'pyp', '.p.', '.g.', 'gg.'], colors: { p: '#ff8fc0', y: '#ffe04a', g: '#3fae4f' } },
+    { rows: ['.ggg.', 'ggggg', 'ggggg', '..b..', '..b..'], colors: { g: '#3fae4f', b: '#7a4a2a' } },
+  ],
+  [
+    { rows: ['.www.', 'wpwpw', 'wwwww'], colors: { w: '#fff4dc', p: '#ffb0d8' } },
+    { rows: ['b...b', '.b.b.', '..b..'], colors: { b: '#9fe8ff' } },
+  ],
+  [
+    { rows: ['.ppp.', 'pwpwp', 'ppwpp', '.ppp.', '..w..', '..w..'], colors: { p: '#ff6fb4', w: '#ffffff' } },
+    { rows: ['.yy.', 'yyyy', '.yy.', '.ww.'], colors: { y: '#ffe04a', w: '#ffffff' } },
+  ],
+  [
+    { rows: ['..o..', '.ooy.', 'oyyyo', '.oyo.'], colors: { o: '#ff8f3a', y: '#ffe04a' } },
+    { rows: ['.kk.', 'kkkk', 'kkkk'], colors: { k: '#5a2a24' } },
+  ],
+];
 const NODE_COLORS = MONSTERS.map((m) => [m.colors.b, m.colors.s, m.colors.o]);
 
 export class LevelMap {
@@ -78,6 +102,22 @@ export class LevelMap {
         ctx.fillRect(x - 2, y - 1, 4, 3);
         ctx.fillStyle = n < this.unlocked ? '#ffe9a8' : '#8a7aa8';
         ctx.fillRect(x - 1, y - 1, 2, 2);
+      }
+    }
+
+    // scenery on the side of the path away from each node
+    for (let n = 1; n <= this.count; n++) {
+      const y = this.nodeY(n) + off;
+      if (y < -30 || y > vh + 30) continue;
+      const props = PROPS[worldFor(n)];
+      const side = Math.sin(n * 0.85) > 0 ? -1 : 1;
+      for (let i = 0; i < 2; i++) {
+        const prop = props[(n + i) % props.length];
+        const dist = 24 + ((n * 37 + i * 53) % 30);
+        const px = Math.round(vw / 2 + side * dist + (i ? side * 22 : 0));
+        const py = y - 6 + ((n * 13 + i * 7) % 18);
+        if (px < 2 || px > vw - 12) continue;
+        pattern(ctx, prop.rows, px, py, prop.colors, 2);
       }
     }
 

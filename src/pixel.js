@@ -230,7 +230,7 @@ export function wrapText(text, maxWidth) {
 }
 
 /** Draw a multi-colour pixel pattern; `colors` maps characters to fills. */
-export function pattern(ctx, rows, x, y, colors) {
+export function pattern(ctx, rows, x, y, colors, scale = 1) {
   x = Math.round(x);
   y = Math.round(y);
   for (let r = 0; r < rows.length; r++) {
@@ -238,7 +238,7 @@ export function pattern(ctx, rows, x, y, colors) {
       const col = colors[rows[r][c]];
       if (!col) continue;
       ctx.fillStyle = col;
-      ctx.fillRect(x + c, y + r, 1, 1);
+      ctx.fillRect(x + c * scale, y + r * scale, scale, scale);
     }
   }
 }
