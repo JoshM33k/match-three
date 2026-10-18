@@ -1085,6 +1085,10 @@ export class Game {
           if (!p.merge) {
             this.burst(t.x, t.y, monsterColor(t.type), 7, Math.random() < 0.5);
             this.burst(t.x, t.y, monsterLight(t.type), 3);
+            if (Math.random() < 0.6) {
+              const { x, y } = this.tileScreen(t);
+              this.particles.push({ x, y: y - 4, vx: (Math.random() - 0.5) * 10, vy: -18 - Math.random() * 10, life: 0, max: 0.9, color: monsterColor(t.type), grav: 0, kind: 'heart', ph: Math.random() * 6 });
+            }
           }
           this.audio.pop(1 + Math.random() * 0.3);
         }
@@ -1498,16 +1502,27 @@ export class Game {
     const [lx, ly] = this.lookFor(t, expr, sx, sy, r, c);
 
     let scale = 1;
+    let sxk = 1;
+    let syk = 1;
     if (t.pop) {
+      // squash down, stretch up ("yay!"), then pop
       const p = t.pop;
       if (p.t < 0) scale = 1;
-      else if (p.t < POP_GROW) scale = 1 + (p.t / POP_GROW) * 0.3;
-      else scale = Math.max(0, 1.3 * (1 - (p.t - POP_GROW) / (POP_TIME - POP_GROW)));
-      if (p.merge) scale = Math.max(0, 1 - p.t / POP_TIME);
+      else if (p.t < 0.045) {
+        sxk = 1.18;
+        syk = 0.82;
+      } else if (p.t < POP_GROW) {
+        sxk = 0.9;
+        syk = 1.3;
+      } else scale = Math.max(0, 1.25 * (1 - (p.t - POP_GROW) / (POP_TIME - POP_GROW)));
+      if (p.merge) {
+        scale = Math.max(0, 1 - p.t / POP_TIME);
+        sxk = syk = 1;
+      }
     }
     const breathe = !t.pop && !t.falling && Math.sin(this.time * 2.6 + t.phase) > 0.55 ? 1 : 0;
-    const w = Math.round(16 * (1 + t.squash) * scale);
-    const h = Math.round(16 * (1 - t.squash) * scale) + breathe;
+    const w = Math.round(16 * (1 + t.squash) * scale * sxk);
+    const h = Math.round(16 * (1 - t.squash) * scale * syk) + breathe;
     if (w <= 0 || h <= 0) return;
 
     let ox = 0;
@@ -1660,6 +1675,19 @@ export class Game {
         const s = fade > 0.5 ? 2 : 1;
         ctx.fillRect(x, y - s, 1, s * 2 + 1);
         ctx.fillRect(x - s, y, s * 2 + 1, 1);
+      } else if (p.kind === 'heart') {
+        if (fade < 0.25 && Math.floor(p.life * 20) % 2) continue;
+        const hx = x + Math.round(Math.sin(p.life * 6 + p.ph) * 2);
+        ctx.fillStyle = '#1a0b2e';
+        ctx.fillRect(hx - 1, y - 1, 7, 6);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(hx, y, 2, 2);
+        ctx.fillRect(hx + 3, y, 2, 2);
+        ctx.fillRect(hx, y + 1, 5, 2);
+        ctx.fillRect(hx + 1, y + 3, 3, 1);
+        ctx.fillRect(hx + 2, y + 4, 1, 1);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(hx, y, 1, 1);
       } else if (p.kind === 'puff') {
         if (p.life < 0) continue;
         const s = p.life / p.max < 0.4 ? 2 : 3;
