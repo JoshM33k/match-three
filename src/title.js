@@ -21,7 +21,7 @@ export class Title {
     const by = Math.max(this.paradeY + 50, Math.floor(vh * 0.62));
     const s = this.app.settings;
     this.buttons = [
-      new Button({ label: 'PLAY', icon: 'play', x: cx - 45, y: by, w: 90, h: 22, color: '#74e06b', shade: '#3f9e4f', onClick: () => (s.level > 1 ? this.app.toMap() : this.app.play(1)) }),
+      new Button({ label: 'PLAY', icon: 'play', x: cx - 45, y: by, w: 90, h: 22, color: '#74e06b', shade: '#3f9e4f', onClick: () => (s.level > 1 ? this.app.toMap() : s.seen && s.seen.story ? this.app.play(1) : this.app.toStory(() => this.app.play(1))) }),
       new Button({ label: 'ZEN', x: cx - 45, y: by + 27, w: 44, h: 17, color: '#6cc4ff', shade: '#3f80c0', onClick: () => this.app.play('zen') }),
       new Button({ label: 'DAILY', x: cx + 1, y: by + 27, w: 44, h: 17, color: '#ffa040', shade: '#c06a20', onClick: () => this.app.play('daily') }),
       new Button({

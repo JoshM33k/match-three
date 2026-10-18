@@ -6,6 +6,7 @@ import { Title } from './title.js';
 import { LevelMap } from './map.js';
 import { Book } from './book.js';
 import { Settings } from './settings.js';
+import { Story } from './story.js';
 import { checkStickers } from './stickers.js';
 import { HATS, hatUnlocked, drawHat } from './hats.js';
 import { getSprite } from './sprites.js';
@@ -84,6 +85,9 @@ const app = {
   buzz(pattern) {
     if (this.settings.haptics !== false && navigator.vibrate) navigator.vibrate(pattern);
   },
+  toStory(then) {
+    this.screen = new Story(this, then);
+  },
   toSettings() {
     this.screen = new Settings(this);
   },
@@ -130,7 +134,7 @@ const app = {
 
 // Screen changes go through a quick dithered pixel wipe.
 const direct = {};
-for (const name of ['play', 'toTitle', 'toBook', 'toMap', 'toSettings']) {
+for (const name of ['play', 'toTitle', 'toBook', 'toMap', 'toSettings', 'toStory']) {
   direct[name] = app[name].bind(app);
   app[name] = (...args) => app.transition(() => direct[name](...args));
 }
