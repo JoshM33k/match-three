@@ -132,14 +132,16 @@ window.addEventListener('keydown', (e) => {
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 200));
 
+// ?speed=N runs the game faster (handy for automated play-testing).
+const speed = Math.min(8, Math.max(0.25, Number(new URLSearchParams(location.search).get('speed')) || 1));
 let last = performance.now();
 let time = 0;
 function frame(now) {
-  const dt = Math.min(1 / 30, (now - last) / 1000);
+  const real = Math.min(1 / 30, (now - last) / 1000);
   last = now;
-  time += dt;
+  time += real;
   if (app.pointer.active && !app.pointer.down && now - app.pointer.lastMove > 2500) app.pointer.active = false;
-  app.screen.update(dt);
+  for (let i = 0; i < speed; i++) app.screen.update(real);
   app.background.draw(ctx, time);
   app.screen.render(ctx);
   display.drawImage(low, app.ox, app.oy, app.vw * app.scale, app.vh * app.scale);

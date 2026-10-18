@@ -3,6 +3,9 @@
 // `special` (null | 'lineH' | 'lineV' | 'bomb' | 'rainbow'). Empty cells are null.
 
 export const RAINBOW_TYPE = -1;
+export const EGG_TYPE = -2;
+
+const isEgg = (t) => t && t.type === EGG_TYPE;
 
 export function makeRng(seed = Date.now()) {
   let a = seed >>> 0;
@@ -152,7 +155,7 @@ function matchAt(grid, r, c) {
 
 /** A swap is "special" when it fires specials directly instead of needing a match. */
 export function isSpecialSwap(a, b) {
-  if (!a || !b) return false;
+  if (!a || !b || isEgg(a) || isEgg(b)) return false;
   if (a.special === 'rainbow' || b.special === 'rainbow') return true;
   return !!(a.special && b.special);
 }
@@ -167,7 +170,7 @@ export function swapCells(grid, [r1, c1], [r2, c2]) {
 export function isValidSwap(grid, a, b) {
   const ta = grid[a[0]][a[1]];
   const tb = grid[b[0]][b[1]];
-  if (!ta || !tb) return false;
+  if (!ta || !tb || isEgg(ta) || isEgg(tb)) return false;
   if (isSpecialSwap(ta, tb)) return true;
   swapCells(grid, a, b);
   const ok = matchAt(grid, a[0], a[1]) || matchAt(grid, b[0], b[1]);

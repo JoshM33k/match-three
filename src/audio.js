@@ -240,6 +240,18 @@ export class Sound {
     this.noise({ dur: 0.14, vol: 0.18, type: 'bandpass', f0: 700, f1: 2600, q: 2 });
   }
 
+  tok() {
+    if (!this.ready()) return;
+    this.tone({ wave: 'triangle', f: [[0, 520], [0.05, 380]], dur: 0.06, vol: 0.2 });
+  }
+
+  crack(hpLeft) {
+    if (!this.ready()) return;
+    this.noise({ dur: 0.08, vol: 0.35, type: 'highpass', f0: 2500, f1: 1200 });
+    this.tone({ wave: 'square', f: [[0, hpLeft ? 900 : 1200], [0.04, 500]], dur: 0.05, vol: 0.08, lp: 3000 });
+    if (!hpLeft) this.noise({ dur: 0.2, vol: 0.3, type: 'bandpass', f0: 1800, f1: 600, q: 1.5, when: 0.04 });
+  }
+
   click() {
     if (!this.ready()) return;
     this.tone({ wave: 'square', f: [[0, 900], [0.03, 1200]], dur: 0.04, vol: 0.1, lp: 3000 });

@@ -8,6 +8,7 @@
 // This module has no DOM dependencies at import time so tools can reuse it.
 
 export const SIZE = 16;
+export const EGG_TYPE = -2;
 
 const FACE = {
   w: '#ffffff',
@@ -213,6 +214,38 @@ export const RAINBOW = {
   face: { ex: 4, ey: 6, my: 10 },
   shine: [[4, 4], [3, 5]],
 };
+// Monster eggs are obstacles: they crack (variant 'e1') and then hatch.
+export const EGG = {
+  name: 'Egg',
+  egg: true,
+  colors: { o: '#5a3a2a', s: '#e6cfa6', b: '#fff4dc', l: '#ffffff', a: '#ffffff', as: '#ffffff', k: '#2a1a12', p: '#ffffff' },
+  half: [
+    '........',
+    '......##',
+    '.....###',
+    '....####',
+    '....####',
+    '...#####',
+    '...#####',
+    '..######',
+    '..######',
+    '..######',
+    '..######',
+    '..######',
+    '...#####',
+    '....####',
+    '.....###',
+    '........',
+  ],
+  spots: [
+    [6, 4, '#ff8fc0'], [7, 4, '#ff8fc0'], [6, 5, '#ff8fc0'], [7, 5, '#ff8fc0'],
+    [10, 6, '#7fe0a0'], [10, 7, '#7fe0a0'], [11, 7, '#7fe0a0'],
+    [4, 11, '#8fc8ff'], [5, 11, '#8fc8ff'], [4, 12, '#8fc8ff'],
+    [10, 12, '#ffc85f'], [11, 12, '#ffc85f'],
+  ],
+  shine: [[7, 2], [6, 3], [5, 4]],
+};
+
 export const RAINBOW_COLORS = ['#ff5a7a', '#ffa040', '#ffe04a', '#74e06b', '#6cc4ff', '#a47bff'];
 export const RAINBOW_FRAMES = RAINBOW_COLORS.length;
 
@@ -385,8 +418,21 @@ export function buildPixels(def, expr = 'idle', lx = 0, ly = 0, variant = 'n', f
     }
   }
 
-  drawFace(def, expr, lx, ly, set);
+  if (def.egg) drawEgg(def, variant, lx, set);
+  else drawFace(def, expr, lx, ly, set);
   return px;
+}
+
+function drawEgg(def, variant, lx, set) {
+  for (const [x, y, c] of def.spots) set(x, y, c);
+  if (variant !== 'e1') return;
+  // a zig-zag crack with a baby monster peeking out
+  const crack = [[3, 8], [4, 7], [5, 8], [6, 9], [7, 8], [8, 8], [9, 9], [10, 8], [11, 7], [12, 8]];
+  for (const [x, y] of crack) set(x, y, def.colors.o);
+  set(6 + lx, 10, def.colors.k);
+  set(9 + lx, 10, def.colors.k);
+  set(6 + lx, 11, def.colors.k);
+  set(9 + lx, 11, def.colors.k);
 }
 
 function stamp(pattern, x0, y0, colors, set, mirror = false) {
@@ -466,20 +512,35 @@ function toCanvas(pixels) {
 
 /** Cached sprite canvas for a monster type (-1 = rainbow). */
 export function getSprite(type, expr, lx = 0, ly = 0, variant = 'n', frame = 0) {
+  if (type === EGG_TYPE) {
+    expr = 'idle';
+    ly = 0;
+    frame = 0;
+  }
   const key = `${type}|${expr}|${lx}|${ly}|${variant}|${frame}`;
   let c = spriteCache.get(key);
   if (!c) {
-    const def = type < 0 ? RAINBOW : MONSTERS[type];
-    c = toCanvas(buildPixels(def, expr, lx, ly, type < 0 ? 'rb' : variant, frame));
+    let def = MONSTERS[type];
+    let v = variant;
+    if (type === EGG_TYPE) {
+      def = EGG;
+      v = variant === 'e1' ? 'e1' : 'e2';
+    } else if (type < 0) {
+      def = RAINBOW;
+      v = 'rb';
+    }
+    c = toCanvas(buildPixels(def, expr, lx, ly, v, frame));
     spriteCache.set(key, c);
   }
   return c;
 }
 
 export function monsterColor(type) {
+  if (type === EGG_TYPE) return EGG.colors.b;
   return type < 0 ? '#ffffff' : MONSTERS[type].colors.b;
 }
 
 export function monsterLight(type) {
+  if (type === EGG_TYPE) return EGG.colors.s;
   return type < 0 ? '#ffffff' : MONSTERS[type].colors.l;
 }

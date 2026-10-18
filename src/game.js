@@ -13,7 +13,7 @@ import {
   shuffleGrid,
   key,
 } from './board.js';
-import { getSprite, monsterColor, monsterLight, RAINBOW_COLORS, RAINBOW_FRAMES } from './sprites.js';
+import { getSprite, monsterColor, monsterLight, RAINBOW_COLORS, RAINBOW_FRAMES, EGG_TYPE } from './sprites.js';
 import { drawText, panel, roundRect, icon, iconOutlined, Button, pixelLine, pixelCircle, textWidth } from './pixel.js';
 import { getLevel, ROWS, COLS } from './levels.js';
 
@@ -99,6 +99,7 @@ export class Game {
     this.moves = this.level.moves;
     this.goals = this.level.collect.map((g) => ({ ...g, left: g.count, shown: g.count, bump: 0 }));
     this.grid = createGrid(ROWS, COLS, this.level.types, this.rng, (t) => new Tile(t));
+    this.placeEggs(this.level.eggs || 0);
     this.particles = [];
     this.texts = [];
     this.effects = [];
@@ -127,6 +128,25 @@ export class Game {
     this.state = 'fall';
     this.overlay = { kind: 'intro', t: 0 };
     this.setButtons();
+  }
+
+  /** Swap some monsters for eggs while keeping the board playable. */
+  placeEggs(n) {
+    if (!n) return;
+    for (let attempt = 0; attempt < 50; attempt++) {
+      const placed = [];
+      while (placed.length < n) {
+        const r = Math.floor(this.rng() * Math.min(ROWS, 6));
+        const c = Math.floor(this.rng() * COLS);
+        if (placed.some(([pr, pc]) => pr === r && pc === c)) continue;
+        placed.push([r, c, this.grid[r][c]]);
+        const egg = new Tile(EGG_TYPE);
+        egg.hp = 2;
+        this.grid[r][c] = egg;
+      }
+      if (findValidMoves(this.grid).length >= 3) return;
+      for (const [r, c, t] of placed) this.grid[r][c] = t;
+    }
   }
 
   eachTile(fn) {
@@ -286,8 +306,13 @@ export class Game {
       this.drag = { cell, x, y, wasSelected: true };
       return;
     }
-    this.selected = cell;
     const t = this.grid[cell[0]][cell[1]];
+    if (t.type === EGG_TYPE) {
+      this.wobbleEgg(t);
+      this.selected = null;
+      return;
+    }
+    this.selected = cell;
     t.jump(-85);
     this.audio.monster(t.type, 'select');
     this.drag = { cell, x, y };
@@ -338,6 +363,12 @@ export class Game {
 
   // ------------------------------------------------------------- game flow
 
+  wobbleEgg(t) {
+    t.shake = 0.4;
+    t.jump(-40);
+    this.audio.tok();
+  }
+
   trySwap(a, b) {
     if (this.state !== 'idle') return;
     const ta = this.grid[a[0]][a[1]];
@@ -346,6 +377,13 @@ export class Game {
     this.selected = null;
     this.drag = null;
     this.hint = null;
+    if (ta.type === EGG_TYPE || tb.type === EGG_TYPE) {
+      for (const t of [ta, tb]) {
+        if (t.type === EGG_TYPE) this.wobbleEgg(t);
+        else t.say('sad', 0.6);
+      }
+      return;
+    }
     swapCells(this.grid, a, b);
     ta.tweenTo(b[1], b[0], SWAP_TIME);
     tb.tweenTo(a[1], a[0], SWAP_TIME);
@@ -448,6 +486,26 @@ export class Game {
     for (const g of spawns) protect.add(key(...g.spawn));
     const seedCells = [...seeds, ...groups.flatMap((g) => g.cells)];
     const res = expandClears(grid, seedCells, effects, { protect, consumed });
+
+    // Eggs never pop: anything that hits them, or a match right next to
+    // them, cracks them instead.
+    const eggHits = new Map();
+    for (const [k, cell] of res.cleared) {
+      if (grid[cell.r][cell.c].type === EGG_TYPE) {
+        eggHits.set(k, cell);
+        res.cleared.delete(k);
+      }
+    }
+    for (const g of groups) {
+      for (const [r, c] of g.cells) {
+        for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const t = grid[r + dr] && grid[r + dr][c + dc];
+          const k = key(r + dr, c + dc);
+          if (t && t.type === EGG_TYPE && !eggHits.has(k)) eggHits.set(k, { r: r + dr, c: c + dc, delay: 0.05 });
+        }
+      }
+    }
+    for (const { r, c, delay } of eggHits.values()) grid[r][c].crack = -delay - 0.05;
 
     const mergeTo = new Map();
     for (const g of spawns) {
@@ -621,7 +679,7 @@ export class Game {
     if (this.moves > 0) {
       const options = [];
       this.eachTile((t, r, c) => {
-        if (!t.special) options.push([r, c]);
+        if (!t.special && t.type >= 0) options.push([r, c]);
       });
       if (options.length) {
         this.moves--;
@@ -910,6 +968,7 @@ export class Game {
       }
 
       this.updateQuirk(t, dt);
+      if (t.crack !== undefined) this.updateCrack(t, dt);
 
       if (t.sleepy) {
         t.zT -= dt;
@@ -929,6 +988,35 @@ export class Game {
         }
       }
     });
+  }
+
+  updateCrack(t, dt) {
+    t.crack += dt;
+    if (t.crack < 0) return;
+    t.crack = undefined;
+    if (t.type !== EGG_TYPE) return;
+    t.hp--;
+    t.shake = 0.3;
+    this.score += 30;
+    this.burst(t.x, t.y, '#fff4dc', 6);
+    this.audio.crack(t.hp);
+    if (t.hp > 0) return;
+    // Hatch! The egg becomes a brand new baby monster.
+    t.type = Math.floor(this.rng() * this.level.types);
+    t.special = null;
+    t.say('excited', 1.2);
+    t.squash = -0.4;
+    t.jump(-110);
+    this.burst(t.x, t.y, '#fff4dc', 12, true);
+    this.burst(t.x, t.y, '#ff8fc0', 4);
+    this.score += 100;
+    this.audio.monster(t.type, 'select', 1.3, 0.05);
+    const goal = this.goals.find((g) => g.type === EGG_TYPE && g.left > 0);
+    if (goal) {
+      goal.left--;
+      this.flyers.push({ goal, type: EGG_TYPE, sx: t.x, sy: t.y, t: 0, dur: 0.6 });
+    }
+    this.texts.push({ text: 'HATCHED!', x: this.tileScreen(t).x, y: this.tileScreen(t).y - 8, t: 0, dur: 0.9, color: '#ffe04a', scale: 1 });
   }
 
   /** Little species-specific idle animations so the board never feels static. */
@@ -1149,7 +1237,8 @@ export class Game {
       ctx.fillRect(Math.round(sx - shw / 2), Math.round(sy) + 7, shw, 2);
     }
 
-    let variant = this.quirkVariant(t);
+    let variant = t.type === EGG_TYPE ? (t.hp < 2 ? 'e1' : 'e2') : this.quirkVariant(t);
+    if (t.type === EGG_TYPE && t.shake <= 0 && Math.sin(this.time * 1.3 + t.phase * 3) > 0.92) ox += Math.floor(this.time * 10) % 2 ? 1 : -1;
     if (t.special === 'lineH') variant = 'lh';
     else if (t.special === 'lineV') variant = 'lv';
     else if (t.special === 'bomb') variant = Math.floor(this.time * 6) % 2 ? 'b0' : 'b1';
@@ -1405,7 +1494,7 @@ export class Game {
         align: 'center',
       });
       if (this.goals.length) {
-        drawText(ctx, 'AND POP', cx + off - 24, y + 47, { color: '#ffffff', align: 'right' });
+        drawText(ctx, 'AND', cx + off - 24, y + 47, { color: '#ffffff', align: 'right' });
         this.goals.forEach((g, i) => {
           const gx = cx + off - 20 + i * 34;
           ctx.drawImage(getSprite(g.type, 'excited'), gx, y + 41);
