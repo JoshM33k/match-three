@@ -142,3 +142,17 @@ test('pal clears its neighbours and one far target', () => {
   assert.equal(effects[0].kind, 'pal');
   assert.deepEqual(effects[0].target, [3, 3]);
 });
+
+test('void cells stay empty and tiles fall past them', () => {
+  const voids = new Set([key(1, 0)]);
+  const g = createGrid(4, 3, 4, makeRng(5), (type) => ({ type, special: null }), voids);
+  assert.equal(g[1][0], null);
+  assert.equal(findMatchGroups(g).length, 0);
+  const top = g[0][0];
+  g[2][0] = null; // pop the cell below the void
+  const moves = applyGravity(g, () => ({ type: 9, special: null }), voids);
+  assert.equal(g[1][0], null, 'void is still empty');
+  assert.equal(g[2][0], top, 'tile above the void dropped past it');
+  assert.equal(g[0][0].type, 9);
+  assert.ok(moves.find((m) => m.tile === top && m.fromR === 0 && m.r === 2));
+});

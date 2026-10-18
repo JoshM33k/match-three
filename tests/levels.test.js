@@ -4,7 +4,7 @@ import { getLevel } from '../src/levels.js';
 import { play } from '../tools/simulate.mjs';
 
 test('levels stay winnable for a decent player', () => {
-  for (const n of [1, 5, 6, 10, 14, 20, 22, 40]) {
+  for (const n of [1, 5, 6, 7, 10, 13, 14, 16, 20, 22, 40]) {
     let wins = 0;
     const games = 40;
     for (let i = 0; i < games; i++) {

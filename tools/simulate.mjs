@@ -4,11 +4,11 @@ import {
   makeRng, createGrid, findMatchGroups, findValidMoves, isSpecialSwap, swapCells,
   swapEffects, expandClears, applyGravity, key,
 } from '../src/board.js';
-import { getLevel, ROWS, COLS } from '../src/levels.js';
+import { getLevel, voidsOf, ROWS, COLS } from '../src/levels.js';
 
 const SPECIAL_BONUS = { lineH: 60, lineV: 60, bomb: 100, rainbow: 200, pal: 80 };
 
-function resolve(grid, rng, types, first, tally, goo) {
+function resolve(grid, rng, types, first, tally, goo, voids) {
   let score = 0;
   let combo = 1;
   let pending = first;
@@ -40,7 +40,7 @@ function resolve(grid, rng, types, first, tally, goo) {
         if (g.special === 'rainbow') t.type = -1;
       }
     }
-    applyGravity(grid, () => ({ type: Math.floor(rng() * types), special: null }));
+    applyGravity(grid, () => ({ type: Math.floor(rng() * types), special: null }), voids);
     combo++;
   }
   return score;
@@ -72,7 +72,8 @@ function evaluate(grid, m, goo) {
 export function play(n, seed, skill = 0.75) {
   const lv = getLevel(n);
   const rng = makeRng(seed);
-  const grid = createGrid(ROWS, COLS, lv.types, rng, (type) => ({ type, special: null }));
+  const voids = voidsOf(lv.shape);
+  const grid = createGrid(ROWS, COLS, lv.types, rng, (type) => ({ type, special: null }), voids);
   let score = 0;
   const tally = {};
   const goo = new Set((lv.goo || []).map(([r, c]) => key(r, c)));
@@ -91,7 +92,7 @@ export function play(n, seed, skill = 0.75) {
       }
     } else m = moves[Math.floor(rng() * moves.length)];
     swapCells(grid, m.a, m.b);
-    score += resolve(grid, rng, lv.types, firstClear(grid, m.a, m.b), tally, goo);
+    score += resolve(grid, rng, lv.types, firstClear(grid, m.a, m.b), tally, goo, voids);
   }
   const cleared = Object.values(tally).reduce((a, b) => a + b, 0);
   const collected = (!lv.boss || cleared >= lv.boss.hp) && goo.size === 0 && lv.collect.filter((g) => g.type >= 0).every((g) => (tally[g.type] || 0) >= g.count);
@@ -100,7 +101,7 @@ export function play(n, seed, skill = 0.75) {
 
 if (import.meta.url === `file://${process.argv[1]}`) {
   const games = Number(process.argv[2]) || 200;
-  for (const n of [1, 2, 3, 4, 5, 6, 8, 10, 12, 14, 15, 18, 20, 22, 30]) {
+  for (const n of [1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 13, 14, 15, 16, 18, 19, 20, 22, 25, 28, 30]) {
     const scores = [];
     let wins = 0;
     for (let i = 0; i < games; i++) {

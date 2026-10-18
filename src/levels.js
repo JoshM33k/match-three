@@ -5,6 +5,24 @@ import { makeRng } from './board.js';
 export const ROWS = 8;
 export const COLS = 8;
 
+// Board shapes for some levels ('.' = no cell).
+export const SHAPES = {
+  heart: ['.##..##.', '########', '########', '########', '########', '.######.', '..####..', '...##...'],
+  diamond: ['...##...', '..####..', '.######.', '########', '########', '.######.', '..####..', '...##...'],
+  donut: ['########', '########', '########', '###..###', '###..###', '########', '########', '########'],
+  plus: ['..####..', '..####..', '########', '########', '########', '########', '..####..', '..####..'],
+  hourglass: ['########', '.######.', '..####..', '..####..', '..####..', '..####..', '.######.', '########'],
+};
+const SHAPE_ORDER = ['heart', 'donut', 'diamond', 'plus', 'hourglass'];
+
+/** Set of key(r, c) for the void cells of a shape. */
+export function voidsOf(shape) {
+  const out = new Set();
+  if (!shape) return out;
+  SHAPES[shape].forEach((row, r) => [...row].forEach((ch, c) => ch === '.' && out.add(r * 64 + c)));
+  return out;
+}
+
 /** A symmetric blob of goo cells in the middle of the board. */
 function makeGoo(n, rng) {
   const cells = new Set();
@@ -29,9 +47,12 @@ export function getLevel(n) {
   // about twice as much, so the first levels are a gentle warm-up.)
   const perMove = 245;
   const difficulty = Math.min(0.82, 0.4 + n * 0.032);
-  const target = Math.round((perMove * moves * difficulty) / 50) * 50;
   // Every fifth level is a boss battle against a giant crowned monster.
   const boss = n % 5 === 0 ? { type: (n / 5 - 1) % 6, hp: Math.min(125, 90 + n) } : null;
+  const shape = !boss && n >= 7 && n % 3 === 1 ? SHAPE_ORDER[Math.floor(n / 3) % SHAPE_ORDER.length] : null;
+  // smaller boards score less, roughly in proportion to how many cells they have
+  const shapeCells = shape ? 64 - voidsOf(shape).size : 64;
+  const target = Math.round((perMove * moves * difficulty * Math.pow(shapeCells / 64, 1.5)) / 50) * 50;
   const collect = [];
   // every fourth level from 4 has monster eggs to hatch
   const eggs = !boss && n >= 4 && n % 4 === 0 ? Math.min(12, 3 + Math.floor(n / 4)) : 0;
@@ -39,7 +60,8 @@ export function getLevel(n) {
   // goo puddles to clean up on some levels
   let goo = null;
   if (!boss && !eggs && n >= 6 && n % 4 === 2) {
-    goo = makeGoo(n, rng);
+    const holes = voidsOf(shape);
+    goo = makeGoo(n, rng).filter(([r, c]) => !holes.has(r * 64 + c));
     collect.push({ type: -3, count: goo.length });
   }
   if (!boss && !goo && n >= 2 && n % 3 !== 1 && collect.length < 2) {
@@ -62,6 +84,7 @@ export function getLevel(n) {
     collect,
     eggs,
     goo,
+    shape,
     seed: n * 104729 + Date.now(),
   };
 }

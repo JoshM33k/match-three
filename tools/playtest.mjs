@@ -57,15 +57,24 @@ for (const [a, b] of combos) {
   await settle();
   await page.evaluate(([s1, s2]) => {
     const g = window.__monsterPop.game;
-    for (const [t, sp] of [[g.grid[4][3], s1], [g.grid[4][4], s2]]) {
+    // two neighbouring cells that exist on this board (shapes have holes)
+    let a = null;
+    for (let r = 3; r < 8 && !a; r++) for (let c = 0; c < 7 && !a; c++) if (g.grid[r][c] && g.grid[r][c + 1]) a = [r, c];
+    const b = [a[0], a[1] + 1];
+    for (const [t, sp] of [[g.grid[a[0]][a[1]], s1], [g.grid[b[0]][b[1]], s2]]) {
       if (t.type < 0) t.type = 0;
       t.special = sp;
       if (sp === 'rainbow') t.type = -1;
     }
-    g.trySwap([4, 3], [4, 4]);
+    g.trySwap(a, b);
   }, [a, b]);
   const st = await settle();
-  const holes = await page.evaluate(() => window.__monsterPop.game.grid.flat().filter((t) => !t).length);
+  const holes = await page.evaluate(() => {
+    const g = window.__monsterPop.game;
+    let n = 0;
+    g.grid.forEach((row, r) => row.forEach((t, c) => !t && !g.voids.has(r * 64 + c) && n++));
+    return n;
+  });
   if (st.startsWith('STUCK') || holes) errors.push(`combo ${a}+${b}: ${st}, ${holes} holes`);
 }
 console.log(`special combos: ${combos.length} tried`);

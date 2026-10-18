@@ -26,20 +26,28 @@ const matchable = (t) => t && t.type >= 0;
 
 const same = (a, b) => matchable(a) && matchable(b) && a.type === b.type;
 
-/** Fill a new grid without any ready-made matches and with at least one move. */
-export function createGrid(rows, cols, numTypes, rng, makeTile) {
+/**
+ * Fill a new grid without any ready-made matches and with at least one move.
+ * `voids` (a Set of key(r, c)) marks cells that are not part of the board.
+ */
+export function createGrid(rows, cols, numTypes, rng, makeTile, voids = null) {
+  const T = (grid, r, c) => (grid[r] && grid[r][c] ? grid[r][c].type : -9);
   for (let attempt = 0; attempt < 200; attempt++) {
     const grid = [];
     for (let r = 0; r < rows; r++) {
       grid.push([]);
       for (let c = 0; c < cols; c++) {
+        if (voids && voids.has(key(r, c))) {
+          grid[r].push(null);
+          continue;
+        }
         let type;
         do {
           type = Math.floor(rng() * numTypes);
         } while (
-          (c >= 2 && grid[r][c - 1].type === type && grid[r][c - 2].type === type) ||
-          (r >= 2 && grid[r - 1][c].type === type && grid[r - 2][c].type === type) ||
-          (r >= 1 && c >= 1 && grid[r - 1][c].type === type && grid[r][c - 1].type === type && grid[r - 1][c - 1].type === type)
+          (T(grid, r, c - 1) === type && T(grid, r, c - 2) === type) ||
+          (T(grid, r - 1, c) === type && T(grid, r - 2, c) === type) ||
+          (T(grid, r - 1, c) === type && T(grid, r, c - 1) === type && T(grid, r - 1, c - 1) === type)
         );
         grid[r].push(makeTile(type));
       }
@@ -436,27 +444,30 @@ export function expandClears(grid, seeds, effects = [], opts = {}) {
  * Mutates grid. Returns every tile that needs to move with its start row
  * (negative rows are above the board).
  */
-export function applyGravity(grid, makeTile) {
+export function applyGravity(grid, makeTile, voids = null) {
   const rows = grid.length;
   const cols = grid[0].length;
   const moves = [];
   for (let c = 0; c < cols; c++) {
-    let write = rows - 1;
-    for (let r = rows - 1; r >= 0; r--) {
+    // the playable cells of this column, bottom to top (tiles fall past voids)
+    const cells = [];
+    for (let r = rows - 1; r >= 0; r--) if (!voids || !voids.has(key(r, c))) cells.push(r);
+    let w = 0;
+    for (const r of cells) {
       const t = grid[r][c];
       if (!t) continue;
-      if (write !== r) {
-        grid[write][c] = t;
+      const to = cells[w++];
+      if (to !== r) {
+        grid[to][c] = t;
         grid[r][c] = null;
-        moves.push({ tile: t, r: write, c, fromR: r });
+        moves.push({ tile: t, r: to, c, fromR: r });
       }
-      write--;
     }
-    const missing = write + 1;
-    for (let r = write; r >= 0; r--) {
+    for (let i = w; i < cells.length; i++) {
+      const r = cells[i];
       const t = makeTile();
       grid[r][c] = t;
-      moves.push({ tile: t, r, c, fromR: r - missing, spawned: true });
+      moves.push({ tile: t, r, c, fromR: -(i - w) - 1, spawned: true });
     }
   }
   return moves;

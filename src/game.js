@@ -15,7 +15,7 @@ import {
 } from './board.js';
 import { getSprite, monsterColor, monsterLight, RAINBOW_COLORS, RAINBOW_FRAMES, EGG_TYPE, GOO_TYPE, MONSTERS } from './sprites.js';
 import { drawText, panel, roundRect, iconOutlined, Button, pixelLine, pixelCircle, textWidth, wrapText, pattern, HAND } from './pixel.js';
-import { getLevel, getZenLevel, getDailyLevel, ROWS, COLS } from './levels.js';
+import { getLevel, getZenLevel, getDailyLevel, voidsOf, ROWS, COLS } from './levels.js';
 import { WORLDS, worldFor } from './background.js';
 import { drawHat } from './hats.js';
 
@@ -123,7 +123,8 @@ export class Game {
     this.shownScore = 0;
     this.moves = this.level.moves;
     this.goals = this.level.collect.map((g) => ({ ...g, left: g.count, shown: g.count, bump: 0 }));
-    this.grid = createGrid(ROWS, COLS, this.level.types, this.rng, (t) => new Tile(t));
+    this.voids = voidsOf(this.level.shape);
+    this.grid = createGrid(ROWS, COLS, this.level.types, this.rng, (t) => new Tile(t), this.voids);
     this.placeEggs(this.level.eggs || 0);
     this.goo = Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
     for (const [r, c] of this.level.goo || []) this.goo[r][c] = 1;
@@ -201,7 +202,7 @@ export class Game {
       while (placed.length < n) {
         const r = Math.floor(this.rng() * Math.min(ROWS, 6));
         const c = Math.floor(this.rng() * COLS);
-        if (placed.some(([pr, pc]) => pr === r && pc === c)) continue;
+        if (placed.some(([pr, pc]) => pr === r && pc === c) || !this.grid[r][c]) continue;
         placed.push([r, c, this.grid[r][c]]);
         const egg = new Tile(EGG_TYPE);
         egg.hp = 2;
@@ -780,7 +781,7 @@ export class Game {
       this.introduce(g.special === 'lineH' || g.special === 'lineV' ? 'line' : g.special, t);
     }
     this.pending = null;
-    const moves = applyGravity(grid, () => new Tile(Math.floor(this.rng() * this.level.types)));
+    const moves = applyGravity(grid, () => new Tile(Math.floor(this.rng() * this.level.types)), this.voids);
     const dropped = moves.filter((m) => m.spawned);
     if (dropped.length >= 6 && this.audio.throttle('whee', 1.5)) {
       const t = dropped[Math.floor(Math.random() * dropped.length)].tile;
@@ -1331,7 +1332,7 @@ export class Game {
     else if (kind === 'scramble') {
       const r0 = 1 + Math.floor(this.rng() * (ROWS - 2));
       const c0 = 1 + Math.floor(this.rng() * (COLS - 2));
-      for (let r = r0 - 1; r <= r0 + 1; r++) for (let c = c0 - 1; c <= c0 + 1; c++) this.attack.cells.push([r, c]);
+      for (let r = r0 - 1; r <= r0 + 1; r++) for (let c = c0 - 1; c <= c0 + 1; c++) if (this.grid[r][c]) this.attack.cells.push([r, c]);
     }
     this.attackT = 0;
     this.state = 'boss';
@@ -1585,11 +1586,24 @@ export class Game {
 
   drawBoard(ctx) {
     const { boardX: x, boardY: y, bw, bh, cell } = this;
-    panel(ctx, x - 4, y - 4, bw + 8, bh + 8, 'rgba(26,11,46,0.72)', '#140726', 4);
-    ctx.fillStyle = 'rgba(255,255,255,0.18)';
-    ctx.fillRect(x - 1, y - 3, bw + 2, 1);
+    if (this.voids.size) {
+      // shaped board: build the panel out of its cells
+      for (const [pad, col] of [[3, '#140726'], [2, '#24123f']]) {
+        ctx.fillStyle = col;
+        for (let r = 0; r < ROWS; r++) {
+          for (let c = 0; c < COLS; c++) {
+            if (!this.voids.has(key(r, c))) ctx.fillRect(x + c * cell - pad, y + r * cell - pad, cell + pad * 2, cell + pad * 2);
+          }
+        }
+      }
+    } else {
+      panel(ctx, x - 4, y - 4, bw + 8, bh + 8, 'rgba(26,11,46,0.72)', '#140726', 4);
+      ctx.fillStyle = 'rgba(255,255,255,0.18)';
+      ctx.fillRect(x - 1, y - 3, bw + 2, 1);
+    }
     for (let r = 0; r < ROWS; r++) {
       for (let c = 0; c < COLS; c++) {
+        if (this.voids.has(key(r, c))) continue;
         ctx.fillStyle = (r + c) % 2 ? 'rgba(160,120,255,0.16)' : 'rgba(255,170,220,0.12)';
         ctx.fillRect(x + c * cell, y + r * cell, cell, cell);
       }
