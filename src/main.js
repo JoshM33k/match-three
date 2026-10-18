@@ -57,7 +57,7 @@ const app = {
     this.background.setTheme(worldFor(level));
   },
   play(level) {
-    this.setWorld(level === 'zen' ? 1 : level);
+    this.setWorld(level === 'zen' ? 21 : level === 'daily' ? 31 : level);
     this.game = new Game(this);
     this.game.start(level);
     this.screen = this.game;

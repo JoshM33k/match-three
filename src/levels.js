@@ -70,3 +70,20 @@ export function getLevel(n) {
 export function getZenLevel() {
   return { n: 0, zen: true, types: 6, moves: 0, target: 0, stars: [0, 0, 0], collect: [], eggs: 0, boss: null, seed: Date.now() };
 }
+
+export function todayKey(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Daily challenge: the same seeded board for everyone on a given day. */
+export function getDailyLevel(day = todayKey()) {
+  let h = 2166136261;
+  for (const ch of day) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  const kinds = [
+    { name: 'CLASSIC DAY', types: 6, moves: 20, eggs: 0 },
+    { name: 'EGG HUNT', types: 6, moves: 20, eggs: 5 },
+    { name: 'MONSTER RUSH', types: 5, moves: 15, eggs: 0 },
+  ];
+  const k = kinds[h % kinds.length];
+  return { n: 0, daily: true, day, title: k.name, types: k.types, moves: k.moves, target: 0, stars: [0, 0, 0], collect: [], eggs: k.eggs, boss: null, goo: null, seed: h };
+}

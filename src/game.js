@@ -15,7 +15,7 @@ import {
 } from './board.js';
 import { getSprite, monsterColor, monsterLight, RAINBOW_COLORS, RAINBOW_FRAMES, EGG_TYPE, GOO_TYPE, MONSTERS } from './sprites.js';
 import { drawText, panel, roundRect, icon, iconOutlined, Button, pixelLine, pixelCircle, textWidth, wrapText, pattern, HAND } from './pixel.js';
-import { getLevel, getZenLevel, ROWS, COLS } from './levels.js';
+import { getLevel, getZenLevel, getDailyLevel, ROWS, COLS } from './levels.js';
 import { WORLDS, worldFor } from './background.js';
 
 const POP_GROW = 0.1;
@@ -111,8 +111,9 @@ export class Game {
 
   start(levelNum) {
     this.levelId = levelNum;
-    this.level = levelNum === 'zen' ? getZenLevel() : getLevel(levelNum);
+    this.level = levelNum === 'zen' ? getZenLevel() : levelNum === 'daily' ? getDailyLevel() : getLevel(levelNum);
     this.zen = !!this.level.zen;
+    this.daily = !!this.level.daily;
     this.milestone = 5000;
     this.rng = makeRng(this.level.seed);
     this.score = 0;
@@ -274,6 +275,12 @@ export class Game {
         btn('MAP', 'map', by + 28, '#a47bff', '#6a44b8', () => a.toMap(this.level.n + (o.kind === 'win' ? 1 : 0))),
       ];
     }
+    if (o.kind === 'daily') {
+      return [
+        btn('AGAIN', 'retry', by + 6, '#ffa040', '#c06a20', () => this.start('daily')),
+        btn('MENU', 'home', by + 28, '#a47bff', '#6a44b8', () => a.toTitle()),
+      ];
+    }
     if (o.kind === 'lose') {
       return [
         btn('RETRY', 'retry', by + 6, '#ff7eb6', '#c2407e', () => this.start(this.levelId)),
@@ -293,7 +300,7 @@ export class Game {
           a.toggleSfx();
           this.setButtons();
         }),
-        this.zen
+        this.zen || this.daily
           ? btn('MENU', 'home', y0 + 88, '#a47bff', '#6a44b8', () => a.toTitle())
           : btn('MAP', 'map', y0 + 88, '#a47bff', '#6a44b8', () => a.toMap(this.level.n)),
       ];
@@ -516,6 +523,10 @@ export class Game {
       this.startBonus();
       return;
     }
+    if (this.moves <= 0 && this.daily) {
+      this.showDailyEnd();
+      return;
+    }
     if (this.moves <= 0 && !this.zen) {
       this.showLose();
       return;
@@ -544,7 +555,7 @@ export class Game {
   }
 
   goalsMet() {
-    if (this.zen) return false;
+    if (this.zen || this.daily) return false;
     if (this.boss && this.boss.hp > 0) return false;
     return this.score >= this.level.target && this.goals.every((g) => g.left <= 0);
   }
@@ -815,6 +826,30 @@ export class Game {
     this.overlay = { kind: 'win', t: 0, stars, shown: 0, word: this.boss ? 'VICTORY!' : WIN_WORDS[n % WIN_WORDS.length], best: s.best[n] };
     this.setButtons();
     this.eachTile((t) => t.say('happy', 99));
+    this.confetti();
+  }
+
+  showDailyEnd() {
+    this.state = 'done';
+    const s = this.app.settings;
+    const d = (s.daily = s.daily || { day: null, best: 0, streak: 0, lastDay: null });
+    const today = this.level.day;
+    if (d.day !== today) {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      const yesterday = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+      d.streak = d.lastDay === yesterday ? d.streak + 1 : 1;
+      d.lastDay = today;
+      d.day = today;
+      d.best = 0;
+    }
+    const isBest = this.score > d.best;
+    d.best = Math.max(d.best, this.score);
+    this.app.persist();
+    this.overlay = { kind: 'daily', t: 0, best: d.best, streak: d.streak, isBest };
+    this.setButtons();
+    this.eachTile((t) => t.say('happy', 99));
+    this.audio.win();
     this.confetti();
   }
 
@@ -1757,6 +1792,26 @@ export class Game {
       drawText(ctx, value, bx + Math.floor(bw / 2), y + (big ? 10 : 12), { color, scale: big ? 2 : 1, align: 'center', outline: '#140726' });
     };
     const side = 38;
+    if (this.daily) {
+      const d = this.app.settings.daily;
+      const best = d && d.day === this.level.day ? d.best : 0;
+      box(x, side, 'DAILY', this.level.day.slice(8), '#ffa040');
+      const low = this.moves <= 5 && this.state !== 'done';
+      box(x + w - side, side, 'MOVES', String(Math.max(0, this.moves)), low && Math.floor(this.time * 3) % 2 ? '#ff5a7a' : '#ffffff');
+      box(x + side + 3, w - side * 2 - 6, 'SCORE', String(this.shownScore), '#ffe04a');
+      const gy = y + 26;
+      panel(ctx, x, gy, w, 19, '#2d1856', '#140726', 3);
+      drawText(ctx, this.level.title, x + 5, gy + 3, { color: '#ffa040' });
+      drawText(ctx, 'BEST TODAY ' + best, x + w - 5, gy + 3, { color: '#c9b6ff', align: 'right' });
+      const barW = w - 10;
+      roundRect(ctx, x + 5, gy + 11, barW, 5, 1, '#140726');
+      const k = best ? Math.min(1, this.shownScore / best) : 0;
+      const fill = Math.round(k * (barW - 2));
+      if (fill > 0) {
+        roundRect(ctx, x + 6, gy + 12, fill, 3, 0, k >= 1 ? '#ffe04a' : '#ffa040');
+      }
+      return;
+    }
     if (this.zen) {
       box(x, side, 'MODE', 'ZEN', '#9fe8ff');
       box(x + w - side, side, 'BEST', String(Math.max(this.app.settings.zenBest || 0, this.shownScore)), '#ffffff');
@@ -1910,6 +1965,12 @@ export class Game {
       const y = midY - Math.floor(h / 2);
       panel(ctx, this.boardX - 4 + off, y, this.bw + 8, h, '#ff7eb6', '#140726', 4);
       roundRect(ctx, this.boardX - 2 + off, y + 2, this.bw + 4, h - 4, 3, '#3d2a7f');
+      if (this.daily) {
+        drawText(ctx, 'DAILY CHALLENGE', cx + off, y - 8, { color: '#ffe9f4', align: 'center', outline: '#140726' });
+        drawText(ctx, this.level.title, cx + off, y + 7, { color: '#ffa040', scale: 3, align: 'center', outline: '#140726' });
+        drawText(ctx, 'BEST SCORE IN ' + this.level.moves + ' MOVES WINS!', cx + off, y + 30, { color: '#ffffff', align: 'center' });
+        return;
+      }
       if (this.zen) {
         drawText(ctx, 'ZEN MODE', cx + off, y + 7, { color: '#9fe8ff', scale: 3, align: 'center', outline: '#140726' });
         drawText(ctx, 'NO MOVES, NO GOALS. JUST MONSTERS.', cx + off, y + 30, { color: '#ffffff', align: 'center' });
@@ -1985,6 +2046,18 @@ export class Game {
         const type = (this.level.n + i) % 6;
         const hop = Math.round(Math.min(0, Math.sin(this.time * 7 - i * 0.9)) * 5);
         ctx.drawImage(getSprite(type, i % 2 ? 'happy' : 'excited'), cx - 48 + i * 20, y + 74 + hop);
+      }
+    } else if (o.kind === 'daily') {
+      const y = midY - 62;
+      panel(ctx, cx - 64, y, 128, 136, '#3d2a7f', '#140726', 4);
+      drawText(ctx, 'ALL DONE!', cx, y + 8, { color: '#ffa040', scale: 2, align: 'center', outline: '#140726' });
+      drawText(ctx, String(this.score), cx, y + 26, { color: '#ffe04a', scale: 3, align: 'center', outline: '#140726' });
+      if (o.isBest && Math.floor(this.time * 3) % 2) drawText(ctx, 'NEW BEST!', cx, y + 46, { color: '#ffffff', align: 'center' });
+      else drawText(ctx, 'BEST TODAY ' + o.best, cx, y + 46, { color: '#c9b6ff', align: 'center' });
+      drawText(ctx, 'STREAK: ' + o.streak + (o.streak === 1 ? ' DAY' : ' DAYS'), cx, y + 58, { color: '#ffffff', align: 'center' });
+      for (let i = 0; i < Math.min(5, o.streak); i++) {
+        const hop = Math.round(Math.min(0, Math.sin(this.time * 6 - i)) * 4);
+        ctx.drawImage(getSprite(i % 6, 'happy'), cx - Math.min(5, o.streak) * 10 + i * 20 + 2, y + 68 + hop);
       }
     } else if (o.kind === 'lose') {
       const y = midY - 62;
