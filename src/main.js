@@ -13,8 +13,13 @@ import { load, save } from './storage.js';
 
 const canvas = document.getElementById('screen');
 const display = canvas.getContext('2d');
-const low = document.createElement('canvas');
-const ctx = low.getContext('2d');
+// Where the browser can upscale with crisp pixels, the canvas is the
+// low-res buffer and CSS (the GPU) scales it. Otherwise we draw into an
+// offscreen low-res canvas and upscale it ourselves every frame.
+const cssScaling = !!(window.CSS && CSS.supports && CSS.supports('image-rendering', 'pixelated'));
+const low = cssScaling ? canvas : document.createElement('canvas');
+const ctx = cssScaling ? display : low.getContext('2d');
+if (cssScaling) canvas.style.imageRendering = 'pixelated';
 const safeProbe = document.getElementById('safe-area');
 
 const app = {
@@ -121,8 +126,10 @@ function resize() {
   const dpr = window.devicePixelRatio || 1;
   const W = Math.round(window.innerWidth * dpr);
   const H = Math.round(window.innerHeight * dpr);
-  canvas.width = W;
-  canvas.height = H;
+  if (!cssScaling) {
+    canvas.width = W;
+    canvas.height = H;
+  }
   // Pick a whole-number pixel scale so a 8x8 board of 16px monsters fits.
   const scale = Math.max(1, Math.floor(Math.min(W / 172, H / 268)));
   app.scale = scale;
@@ -135,6 +142,14 @@ function resize() {
   app.safeBottom = Math.ceil((parseFloat(cs.paddingBottom) || 0) * dpr / scale);
   low.width = app.vw;
   low.height = app.vh;
+  if (cssScaling) {
+    Object.assign(canvas.style, {
+      left: app.ox / dpr + 'px',
+      top: app.oy / dpr + 'px',
+      width: (app.vw * scale) / dpr + 'px',
+      height: (app.vh * scale) / dpr + 'px',
+    });
+  }
   ctx.imageSmoothingEnabled = false;
   display.imageSmoothingEnabled = false;
   app.background.resize(app.vw, app.vh);
@@ -145,6 +160,7 @@ function resize() {
 function toVirtual(e) {
   const rect = canvas.getBoundingClientRect();
   const k = canvas.width / rect.width;
+  if (cssScaling) return { x: (e.clientX - rect.left) * k, y: (e.clientY - rect.top) * k };
   return {
     x: ((e.clientX - rect.left) * k - app.ox) / app.scale,
     y: ((e.clientY - rect.top) * k - app.oy) / app.scale,
@@ -206,7 +222,7 @@ function frame(now) {
   app.background.draw(ctx, time);
   app.screen.render(ctx);
   app.drawToasts(ctx, real * speed);
-  display.drawImage(low, app.ox, app.oy, app.vw * app.scale, app.vh * app.scale);
+  if (!cssScaling) display.drawImage(low, app.ox, app.oy, app.vw * app.scale, app.vh * app.scale);
   requestAnimationFrame(frame);
 }
 
