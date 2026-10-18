@@ -14,7 +14,7 @@ import {
   key,
 } from './board.js';
 import { getSprite, monsterColor, monsterLight, RAINBOW_COLORS, RAINBOW_FRAMES, EGG_TYPE, GOO_TYPE, MONSTERS } from './sprites.js';
-import { drawText, panel, roundRect, icon, iconOutlined, Button, pixelLine, pixelCircle, textWidth, wrapText, pattern, HAND } from './pixel.js';
+import { drawText, panel, roundRect, iconOutlined, Button, pixelLine, pixelCircle, textWidth, wrapText, pattern, HAND } from './pixel.js';
 import { getLevel, getZenLevel, getDailyLevel, ROWS, COLS } from './levels.js';
 import { WORLDS, worldFor } from './background.js';
 import { drawHat } from './hats.js';
