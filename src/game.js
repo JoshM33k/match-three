@@ -377,10 +377,11 @@ export class Game {
     this.wake();
     if (this.state !== 'idle') return;
     const cell = this.cellAt(x, y);
-    if (!cell) {
+    if (!cell || !this.grid[cell[0]][cell[1]]) {
       this.selected = null;
       return;
     }
+    this.tickle(cell);
     const sel = this.selected;
     if (sel && Math.abs(sel[0] - cell[0]) + Math.abs(sel[1] - cell[1]) === 1) {
       this.trySwap(sel, cell);
@@ -400,6 +401,35 @@ export class Game {
     t.jump(-85);
     this.audio.monster(t.type, 'select');
     this.drag = { cell, x, y };
+  }
+
+  /** Tapping the same monster quickly tickles it. */
+  tickle(cell) {
+    const k = key(...cell);
+    const now = this.time;
+    const tk = this.tickles;
+    if (!tk || tk.k !== k || now - tk.t > 0.6) {
+      this.tickles = { k, t: now, n: 1 };
+      return;
+    }
+    tk.t = now;
+    tk.n++;
+    const t = this.grid[cell[0]][cell[1]];
+    if (!t || t.type < 0) return;
+    if (tk.n === 3) {
+      t.say('laugh', 0.9);
+      t.jump(-100);
+      this.audio.monster(t.type, 'match', 1.35);
+      const { x, y } = this.tileScreen(t);
+      for (let i = 0; i < 3; i++) {
+        this.particles.push({ x: x + (i - 1) * 5, y: y - 6, vx: (i - 1) * 8, vy: -20 - i * 4, life: 0, max: 0.9, color: monsterColor(t.type), grav: 0, kind: 'heart', ph: i });
+      }
+    } else if (tk.n >= 6) {
+      t.say('dizzy', 1.2);
+      t.shake = 0.5;
+      this.audio.monster(t.type, 'sad', 0.9);
+      tk.n = 0;
+    }
   }
 
   pointerMove(x, y) {
