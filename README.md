@@ -11,7 +11,7 @@ npm start            # serves the folder on http://localhost:8080
 # or: python3 -m http.server 8080
 ```
 
-Open the URL on your phone (same network) or in a browser's device emulator. Every push to `main` is tested and deployed to GitHub Pages by `.github/workflows/pages.yml`. The game is then at `https://<owner>.github.io/match-three/`. If the first deploy fails at "configure-pages", open **Settings → Pages**, set **Source** to **GitHub Actions**, and re-run the workflow. On a phone, "Add to Home Screen" runs it fullscreen in portrait.
+Open the URL on your phone (same network) or in a browser's device emulator. Every push to `main` is tested and deployed to GitHub Pages by `.github/workflows/pages.yml`. The game is then at `https://<owner>.github.io/match-three/`. If the first deploy fails at "configure-pages", open **Settings → Pages**, set **Source** to **GitHub Actions**, and re-run the workflow. On a phone, "Add to Home Screen" runs it fullscreen in portrait, and a small service worker (`sw.js`) lets it start offline once it has been opened.
 
 ## The monsters
 

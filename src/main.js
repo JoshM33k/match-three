@@ -152,3 +152,7 @@ resize();
 app.toTitle();
 window.__monsterPop = app; // handy for debugging from the console
 requestAnimationFrame(frame);
+
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
