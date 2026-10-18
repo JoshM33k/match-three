@@ -3,6 +3,9 @@
 // `special` (null | 'lineH' | 'lineV' | 'bomb' | 'rainbow'). Empty cells are null.
 
 export const RAINBOW_TYPE = -1;
+export const EGG_TYPE = -2;
+
+const isEgg = (t) => t && t.type === EGG_TYPE;
 
 export function makeRng(seed = Date.now()) {
   let a = seed >>> 0;
@@ -23,19 +26,31 @@ const matchable = (t) => t && t.type >= 0;
 
 const same = (a, b) => matchable(a) && matchable(b) && a.type === b.type;
 
-/** Fill a new grid without any ready-made matches and with at least one move. */
-export function createGrid(rows, cols, numTypes, rng, makeTile) {
+/**
+ * Fill a new grid without any ready-made matches and with at least one move.
+ * `voids` (a Set of key(r, c)) marks cells that are not part of the board.
+ * makeTile receives the monster type to create.
+ */
+export function createGrid(rows, cols, numTypes, rng, makeTile, voids = null) {
+  const T = (grid, r, c) => (grid[r] && grid[r][c] ? grid[r][c].type : -9);
+  // numTypes is a count (types 0..n-1) or an explicit list of monster types
+  const pick = () => (Array.isArray(numTypes) ? numTypes[Math.floor(rng() * numTypes.length)] : Math.floor(rng() * numTypes));
   for (let attempt = 0; attempt < 200; attempt++) {
     const grid = [];
     for (let r = 0; r < rows; r++) {
       grid.push([]);
       for (let c = 0; c < cols; c++) {
+        if (voids && voids.has(key(r, c))) {
+          grid[r].push(null);
+          continue;
+        }
         let type;
         do {
-          type = Math.floor(rng() * numTypes);
+          type = pick();
         } while (
-          (c >= 2 && grid[r][c - 1].type === type && grid[r][c - 2].type === type) ||
-          (r >= 2 && grid[r - 1][c].type === type && grid[r - 2][c].type === type)
+          (T(grid, r, c - 1) === type && T(grid, r, c - 2) === type) ||
+          (T(grid, r - 1, c) === type && T(grid, r - 2, c) === type) ||
+          (T(grid, r - 1, c) === type && T(grid, r, c - 1) === type && T(grid, r - 1, c - 1) === type)
         );
         grid[r].push(makeTile(type));
       }
@@ -134,7 +149,48 @@ export function findMatchGroups(grid, swapCells = []) {
     }
     groups.push({ type: longest.type, cells, special, spawn });
   }
+  addSquares(grid, groups, swapCells);
   return groups;
+}
+
+/**
+ * 2x2 squares of one monster make a "pal". A square touching a plain match
+ * upgrades that match; one touching a match that already makes a special
+ * just joins it.
+ */
+function addSquares(grid, groups, swapCells) {
+  const owner = new Map();
+  groups.forEach((g, i) => g.cells.forEach(([r, c]) => owner.set(key(r, c), i)));
+  for (let r = 0; r + 1 < grid.length; r++) {
+    for (let c = 0; c + 1 < grid[0].length; c++) {
+      const t = grid[r][c];
+      if (!matchable(t) || !same(t, grid[r][c + 1]) || !same(t, grid[r + 1][c]) || !same(t, grid[r + 1][c + 1])) continue;
+      const sq = [[r, c], [r, c + 1], [r + 1, c], [r + 1, c + 1]];
+      const hit = sq.map(([y, x]) => owner.get(key(y, x))).find((i) => i !== undefined);
+      let g = hit !== undefined ? groups[hit] : null;
+      if (!g) {
+        g = { type: t.type, cells: [], special: null, spawn: null };
+        groups.push(g);
+      }
+      const idx = groups.indexOf(g);
+      for (const cell of sq) {
+        const k = key(cell[0], cell[1]);
+        if (!owner.has(k)) {
+          g.cells.push(cell);
+          owner.set(k, idx);
+        }
+      }
+      if (!g.special) {
+        const free = ([y, x]) => !grid[y][x].special;
+        const inSq = (cell) => sq.some(([y, x]) => y === cell[0] && x === cell[1]);
+        const spawn = swapCells.find((cell) => inSq(cell) && free(cell)) || sq.find(free);
+        if (spawn) {
+          g.special = 'pal';
+          g.spawn = spawn;
+        }
+      }
+    }
+  }
 }
 
 function matchAt(grid, r, c) {
@@ -147,12 +203,20 @@ function matchAt(grid, r, c) {
   let v = 1;
   for (let y = r - 1; y >= 0 && same(grid[y][c], t); y--) v++;
   for (let y = r + 1; y < grid.length && same(grid[y][c], t); y++) v++;
-  return v >= 3;
+  if (v >= 3) return true;
+  // part of a 2x2 square?
+  for (const [dr, dc] of [[-1, -1], [-1, 0], [0, -1], [0, 0]]) {
+    const y = r + dr;
+    const x = c + dc;
+    if (y < 0 || x < 0 || y + 1 >= grid.length || x + 1 >= grid[0].length) continue;
+    if (same(grid[y][x], t) && same(grid[y][x + 1], t) && same(grid[y + 1][x], t) && same(grid[y + 1][x + 1], t)) return true;
+  }
+  return false;
 }
 
 /** A swap is "special" when it fires specials directly instead of needing a match. */
 export function isSpecialSwap(a, b) {
-  if (!a || !b) return false;
+  if (!a || !b || isEgg(a) || isEgg(b)) return false;
   if (a.special === 'rainbow' || b.special === 'rainbow') return true;
   return !!(a.special && b.special);
 }
@@ -167,7 +231,7 @@ export function swapCells(grid, [r1, c1], [r2, c2]) {
 export function isValidSwap(grid, a, b) {
   const ta = grid[a[0]][a[1]];
   const tb = grid[b[0]][b[1]];
-  if (!ta || !tb) return false;
+  if (!ta || !tb || isEgg(ta) || isEgg(tb)) return false;
   if (isSpecialSwap(ta, tb)) return true;
   swapCells(grid, a, b);
   const ok = matchAt(grid, a[0], a[1]) || matchAt(grid, b[0], b[1]);
@@ -218,6 +282,8 @@ export function effectFor(special, r, c) {
       return { kind: 'bomb', radius: 1, r, c };
     case 'rainbow':
       return { kind: 'color', type: null, r, c };
+    case 'pal':
+      return { kind: 'pal', r, c };
     default:
       return null;
   }
@@ -233,6 +299,7 @@ export function swapEffects(grid, a, b) {
     const [rb, other] = ta.special === 'rainbow' ? [a, tb] : [b, ta];
     return [{ kind: 'color', type: other.type, convert: other.special || null, r: rb[0], c: rb[1] }];
   }
+  if (ta.special === 'pal' || tb.special === 'pal') return [effectFor(ta.special, a[0], a[1]), effectFor(tb.special, b[0], b[1])];
   const kinds = [ta.special, tb.special].map((s) => (s === 'bomb' ? 'bomb' : 'line'));
   if (kinds[0] === 'bomb' && kinds[1] === 'bomb') return [{ kind: 'bomb', radius: 2, r, c }];
   if (kinds[0] === 'line' && kinds[1] === 'line') {
@@ -247,6 +314,26 @@ export function swapEffects(grid, a, b) {
 // Seconds between successive cells of an effect, and before chained effects.
 const STEP = 0.035;
 const CHAIN = 0.12;
+export const PAL_FLIGHT = 0.4;
+
+let palTarget = null;
+
+/** Pick where a pal flies: any monster not already being cleared, far away. */
+function defaultPalTarget(grid, cleared, e) {
+  let best = null;
+  let bestD = -1;
+  grid.forEach((row, r) =>
+    row.forEach((t, c) => {
+      if (!t || cleared.has(key(r, c)) || Math.abs(r - e.r) + Math.abs(c - e.c) <= 1) return;
+      const d = ((r * 7 + c * 13 + e.r * 3 + e.c * 5) % 17) + (t.special ? 20 : 0);
+      if (d > bestD) {
+        bestD = d;
+        best = [r, c];
+      }
+    })
+  );
+  return best;
+}
 
 /** Cells an effect hits, each with its distance-based delay offset. */
 function effectCells(grid, e, cleared) {
@@ -286,6 +373,13 @@ function effectCells(grid, e, cleared) {
       add(e.r, e.c, 0);
       break;
     }
+    case 'pal': {
+      // clear the pal's neighbours, then fly off to one target
+      for (const [dr, dc] of [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]]) add(e.r + dr, e.c + dc, 0);
+      if (!e.target) e.target = (palTarget || defaultPalTarget)(grid, cleared, e);
+      if (e.target) add(e.target[0], e.target[1], PAL_FLIGHT);
+      break;
+    }
     case 'all':
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) add(r, c, (Math.abs(r - e.r) + Math.abs(c - e.c)) * STEP);
@@ -305,6 +399,7 @@ function effectCells(grid, e, cleared) {
  *   Each effect gets a `delay` (seconds) for staging the animation.
  */
 export function expandClears(grid, seeds, effects = [], opts = {}) {
+  palTarget = opts.palTarget || null;
   const protect = opts.protect || new Set();
   const consumed = new Set(opts.consumed || []);
   const cleared = new Map();
@@ -336,7 +431,7 @@ export function expandClears(grid, seeds, effects = [], opts = {}) {
     const exclude = new Set(cleared.keys());
     for (const [r, c, d] of effectCells(grid, e, exclude)) {
       if (e.convert && !grid[r][c].special && !consumed.has(key(r, c)) && !protect.has(key(r, c))) {
-        const kind = e.convert === 'bomb' ? 'bomb' : (r + c) % 2 ? 'lineH' : 'lineV';
+        const kind = e.convert === 'bomb' || e.convert === 'pal' ? e.convert : (r + c) % 2 ? 'lineH' : 'lineV';
         const conv = effectFor(kind, r, c);
         consumed.add(key(r, c));
         queue.push({ ...conv, delay: e.delay + d + CHAIN });
@@ -352,27 +447,30 @@ export function expandClears(grid, seeds, effects = [], opts = {}) {
  * Mutates grid. Returns every tile that needs to move with its start row
  * (negative rows are above the board).
  */
-export function applyGravity(grid, makeTile) {
+export function applyGravity(grid, makeTile, voids = null) {
   const rows = grid.length;
   const cols = grid[0].length;
   const moves = [];
   for (let c = 0; c < cols; c++) {
-    let write = rows - 1;
-    for (let r = rows - 1; r >= 0; r--) {
+    // the playable cells of this column, bottom to top (tiles fall past voids)
+    const cells = [];
+    for (let r = rows - 1; r >= 0; r--) if (!voids || !voids.has(key(r, c))) cells.push(r);
+    let w = 0;
+    for (const r of cells) {
       const t = grid[r][c];
       if (!t) continue;
-      if (write !== r) {
-        grid[write][c] = t;
+      const to = cells[w++];
+      if (to !== r) {
+        grid[to][c] = t;
         grid[r][c] = null;
-        moves.push({ tile: t, r: write, c, fromR: r });
+        moves.push({ tile: t, r: to, c, fromR: r });
       }
-      write--;
     }
-    const missing = write + 1;
-    for (let r = write; r >= 0; r--) {
+    for (let i = w; i < cells.length; i++) {
+      const r = cells[i];
       const t = makeTile();
       grid[r][c] = t;
-      moves.push({ tile: t, r, c, fromR: r - missing, spawned: true });
+      moves.push({ tile: t, r, c, fromR: -(i - w) - 1, spawned: true });
     }
   }
   return moves;
@@ -396,7 +494,7 @@ export function shuffleGrid(grid, rng) {
       [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
     }
     cells.forEach(([r, c], i) => (grid[r][c] = tiles[i]));
-    if (findRuns(grid).length === 0 && findValidMoves(grid).length > 0) return true;
+    if (findMatchGroups(grid).length === 0 && findValidMoves(grid).length > 0) return true;
   }
   return false;
 }

@@ -31,7 +31,7 @@ function grid(rows, specials = {}) {
 test('createGrid has no matches and at least one move', () => {
   for (let seed = 1; seed < 40; seed++) {
     const g = createGrid(8, 8, 6, makeRng(seed), (type) => ({ type, special: null }));
-    assert.equal(findRuns(g).length, 0);
+    assert.equal(findMatchGroups(g).length, 0);
     assert.ok(findValidMoves(g).length > 0);
   }
 });
@@ -115,4 +115,44 @@ test('shuffle produces a playable board', () => {
   assert.ok(shuffleGrid(g, makeRng(9)));
   assert.equal(findRuns(g).length, 0);
   assert.ok(findValidMoves(g).length > 0);
+});
+
+test('a 2x2 square makes a pal, and is a valid move', () => {
+  const g = grid(['0012', '0034', '1234']);
+  const [group] = findMatchGroups(g);
+  assert.equal(group.special, 'pal');
+  assert.equal(group.cells.length, 4);
+  const g2 = grid(['0012', '1034', '0234']);
+  assert.ok(isValidSwap(g2, [1, 0], [2, 0]) || isValidSwap(g2, [1, 0], [1, 1]) || isValidSwap(g2, [2, 0], [1, 0]));
+});
+
+test('square next to a line of three upgrades it to a pal', () => {
+  const g = grid(['0001', '0023', '1234']);
+  const groups = findMatchGroups(g);
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].special, 'pal');
+  assert.equal(groups[0].cells.length, 5);
+});
+
+test('pal clears its neighbours and one far target', () => {
+  const g = grid(['1234', '2341', '3412', '4123'], { '1,1': 'pal' });
+  const { cleared, effects } = expandClears(g, [[1, 1]], [], { palTarget: () => [3, 3] });
+  assert.ok(cleared.has(key(3, 3)));
+  assert.ok(cleared.has(key(0, 1)) && cleared.has(key(1, 2)));
+  assert.equal(effects[0].kind, 'pal');
+  assert.deepEqual(effects[0].target, [3, 3]);
+});
+
+test('void cells stay empty and tiles fall past them', () => {
+  const voids = new Set([key(1, 0)]);
+  const g = createGrid(4, 3, 4, makeRng(5), (type) => ({ type, special: null }), voids);
+  assert.equal(g[1][0], null);
+  assert.equal(findMatchGroups(g).length, 0);
+  const top = g[0][0];
+  g[2][0] = null; // pop the cell below the void
+  const moves = applyGravity(g, () => ({ type: 9, special: null }), voids);
+  assert.equal(g[1][0], null, 'void is still empty');
+  assert.equal(g[2][0], top, 'tile above the void dropped past it');
+  assert.equal(g[0][0].type, 9);
+  assert.ok(moves.find((m) => m.tile === top && m.fromR === 0 && m.r === 2));
 });

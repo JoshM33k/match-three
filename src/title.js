@@ -1,5 +1,6 @@
 // Title screen: bouncy logo and a parade of monsters you can poke.
 import { getSprite, MONSTERS } from './sprites.js';
+import { drawHat } from './hats.js';
 import { drawText, textWidth, Button, iconOutlined } from './pixel.js';
 
 const LOGO_COLORS = ['#ff80b8', '#a47bff', '#74e06b', '#ffa040', '#6cc4ff', '#ffe04a'];
@@ -8,7 +9,7 @@ export class Title {
   constructor(app) {
     this.app = app;
     this.time = 0;
-    this.monsters = MONSTERS.map((_, i) => ({ type: i, hop: 0, hopV: 0, expr: null, exprT: 0, blinkT: Math.random() * 4 }));
+    this.monsters = MONSTERS.slice(0, app.settings.level > 20 ? 7 : 6).map((_, i) => ({ type: i, hop: 0, hopV: 0, expr: null, exprT: 0, blinkT: Math.random() * 4, quirkT: 1 + Math.random() * 4, quirk: 0 }));
     this.layout();
   }
 
@@ -20,11 +21,13 @@ export class Title {
     const by = Math.max(this.paradeY + 50, Math.floor(vh * 0.62));
     const s = this.app.settings;
     this.buttons = [
-      new Button({ label: 'PLAY', icon: 'play', x: cx - 45, y: by, w: 90, h: 22, color: '#74e06b', shade: '#3f9e4f', onClick: () => this.app.play(s.level) }),
+      new Button({ label: 'PLAY', icon: 'play', x: cx - 45, y: by, w: 90, h: 22, color: '#74e06b', shade: '#3f9e4f', onClick: () => (s.level > 1 ? this.app.toMap() : s.seen && s.seen.story ? this.app.play(1) : this.app.toStory(() => this.app.play(1))) }),
+      new Button({ label: 'ZEN', x: cx - 45, y: by + 27, w: 44, h: 17, color: '#6cc4ff', shade: '#3f80c0', onClick: () => this.app.play('zen') }),
+      new Button({ label: 'DAILY', x: cx + 1, y: by + 27, w: 44, h: 17, color: '#ffa040', shade: '#c06a20', onClick: () => this.app.play('daily') }),
       new Button({
         icon: 'music',
-        x: cx - 24,
-        y: by + 32,
+        x: cx - 56,
+        y: by + 50,
         w: 22,
         h: 18,
         color: s.music ? '#6cc4ff' : '#7a6a90',
@@ -36,8 +39,8 @@ export class Title {
       }),
       new Button({
         icon: 'sound',
-        x: cx + 2,
-        y: by + 32,
+        x: cx - 31,
+        y: by + 50,
         w: 22,
         h: 18,
         color: s.sfx ? '#74e06b' : '#7a6a90',
@@ -47,28 +50,31 @@ export class Title {
           this.layout();
         },
       }),
+      new Button({ icon: 'book', label: 'BOOK', x: cx - 6, y: by + 50, w: 36, h: 18, color: '#ffa040', shade: '#c06a20', onClick: () => this.app.toBook() }),
+      new Button({ icon: 'gear', x: cx + 33, y: by + 50, w: 22, h: 18, color: '#a47bff', shade: '#6a44b8', onClick: () => this.app.toSettings() }),
     ];
-    if (s.level > 1) {
-      this.buttons.push(
-        new Button({ label: 'NEW GAME', x: cx - 34, y: by + 58, w: 68, h: 16, color: '#a47bff', shade: '#6a44b8', onClick: () => this.app.play(1) })
-      );
-    }
   }
 
   monsterRect(i) {
     const n = this.monsters.length;
     const size = 32;
     const gap = 2;
-    const total = n * size + (n - 1) * gap;
-    const x0 = Math.floor((this.app.vw - Math.min(total, this.app.vw - 4)) / 2);
-    const step = Math.min(size + gap, Math.floor((this.app.vw - 4) / n));
-    return { x: x0 + i * step, y: this.paradeY, size: Math.min(size, step) };
+    // monsters stay 32px (crisp 2x); a big crowd just overlaps a little
+    const step = Math.min(size + gap, Math.floor((this.app.vw - 4 - size) / Math.max(1, n - 1)));
+    const width = step * (n - 1) + size;
+    return { x: Math.floor((this.app.vw - width) / 2) + i * step, y: this.paradeY, size };
   }
 
   update(dt) {
     this.time += dt;
     this.monsters.forEach((m, i) => {
       if (m.exprT > 0) m.exprT -= dt;
+      m.quirk -= dt;
+      m.quirkT -= dt;
+      if (m.quirkT <= 0) {
+        m.quirkT = 2 + Math.random() * 4;
+        m.quirk = 0.7;
+      }
       m.blinkT -= dt;
       if (m.blinkT < -0.12) m.blinkT = 2 + Math.random() * 4;
       // a wave of hops runs along the parade
@@ -107,7 +113,10 @@ export class Title {
       if (p.active && (expr === 'idle' || expr === 'excited')) lx = p.x > r.x + r.size ? 1 : p.x < r.x ? -1 : 0;
       ctx.fillStyle = 'rgba(20,5,40,0.35)';
       ctx.fillRect(r.x + 8, r.y + r.size - 2, r.size - 16, 3);
-      ctx.drawImage(getSprite(m.type, expr, lx, 0), r.x, r.y + Math.round(m.hop), r.size, r.size);
+      const variant = m.quirk > 0 && MONSTERS[m.type].quirks ? (Math.floor(this.time * 8) % 2 ? 'q1' : 'q2') : 'n';
+      const float = m.type === 4 ? Math.round(Math.sin(this.time * 2.2) * 2) : 0;
+      ctx.drawImage(getSprite(m.type, expr, lx, 0, variant), r.x, r.y + Math.round(m.hop) + float, r.size, r.size);
+      drawHat(ctx, this.app.settings.hat, m.type, r.x, r.y + Math.round(m.hop) + float, r.size, r.size);
     });
 
     for (const b of this.buttons) b.draw(ctx, this.time);
@@ -137,7 +146,7 @@ export class Title {
     this.monsters.forEach((m, i) => {
       const r = this.monsterRect(i);
       if (x >= r.x && x < r.x + r.size && y >= r.y - 10 && y < r.y + r.size) {
-        const moods = ['happy', 'surprised', 'excited', 'dizzy', 'squish'];
+        const moods = ['happy', 'surprised', 'excited', 'dizzy', 'squish', 'love', 'laugh', 'wink'];
         m.expr = moods[Math.floor(Math.random() * moods.length)];
         m.exprT = 0.7;
         m.hopV = -150;

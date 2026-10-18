@@ -59,7 +59,128 @@ const VOICES = [
     ],
     land: [{ wave: 'square', f: [[0, 900], [0.03, 700]], dur: 0.035, vol: 0.05, lp: 2500 }],
   },
+  // 6 Shroomy: bouncy mushroom — springy "boing!"
+  {
+    select: [{ wave: 'triangle', f: [[0, 300], [0.06, 620], [0.12, 420]], dur: 0.14, vol: 0.34 }],
+    match: [
+      { wave: 'triangle', f: [[0, 200], [0.08, 720], [0.16, 300], [0.3, 520]], dur: 0.32, vol: 0.38, vib: [14, 30] },
+    ],
+    sad: [{ wave: 'triangle', f: [[0, 420], [0.3, 200]], dur: 0.32, vol: 0.32, vib: [9, 25] }],
+    land: [{ wave: 'triangle', f: [[0, 260], [0.03, 420], [0.07, 180]], dur: 0.08, vol: 0.12 }],
+  },
 ];
+
+// Four-bar loops of eighth notes (MIDI numbers, 0 = rest).
+const SONGS = {
+  title: {
+    bpm: 116,
+    lead: 'square',
+    leadVol: 0.16,
+    lp: 2400,
+    octaveUp: true,
+    roots: [48, 45, 41, 43],
+    bass: [0, null, 12, null, 7, null, 12, 7],
+    mel: [72, 0, 76, 79, 76, 0, 74, 72, 69, 0, 72, 76, 74, 72, 69, 0, 65, 69, 72, 0, 74, 72, 69, 67, 67, 0, 71, 74, 79, 0, 77, 74],
+  },
+  game: {
+    bpm: 124,
+    lead: 'square',
+    leadVol: 0.13,
+    lp: 2000,
+    octaveUp: false,
+    roots: [43, 40, 48, 50],
+    bass: [0, null, 7, 12, null, 7, 12, null],
+    mel: [79, 0, 78, 76, 74, 0, 76, 79, 76, 0, 74, 71, 72, 74, 76, 0, 72, 76, 79, 0, 81, 79, 76, 74, 74, 0, 78, 81, 78, 0, 74, 0],
+  },
+  boss: {
+    bpm: 144,
+    lead: 'sawtooth',
+    leadVol: 0.1,
+    lp: 1800,
+    octaveUp: false,
+    drive: true,
+    roots: [45, 41, 43, 40],
+    bass: [0, 12, 0, 12, 0, 12, 7, 12],
+    mel: [69, 72, 76, 72, 81, 0, 79, 76, 77, 0, 76, 72, 74, 0, 72, 69, 71, 74, 79, 74, 83, 0, 81, 79, 76, 0, 80, 83, 88, 0, 83, 80],
+  },
+};
+
+// Alternate match phrases (picked at random with the original) and a
+// "wheee" for long drops, per species.
+const EXTRA = [
+  {
+    match: [
+      [
+        { wave: 'sine', f: [[0, 1200], [0.08, 500]], dur: 0.09, vol: 0.35 },
+        { wave: 'sine', f: [[0, 1000], [0.08, 420]], dur: 0.09, vol: 0.32, at: 0.08 },
+        { wave: 'sine', f: [[0, 820], [0.1, 300]], dur: 0.11, vol: 0.3, at: 0.16 },
+      ],
+      [{ wave: 'sine', f: [[0, 380], [0.08, 300], [0.2, 900]], dur: 0.22, vol: 0.38 }],
+    ],
+    whee: [{ wave: 'sine', f: [[0, 400], [0.35, 1300]], dur: 0.38, vol: 0.25, vib: [9, 30] }],
+  },
+  {
+    match: [
+      [{ wave: 'sawtooth', f: [[0, 190], [0.12, 95]], dur: 0.14, vol: 0.4, formants: [500, 900], trem: [40, 0.5] }],
+      [
+        { wave: 'sawtooth', f: [[0, 110], [0.12, 140]], dur: 0.14, vol: 0.38, lp: 900, trem: [30, 0.7] },
+        { wave: 'sawtooth', f: [[0, 130], [0.14, 170]], dur: 0.16, vol: 0.38, lp: 900, trem: [30, 0.7], at: 0.17 },
+      ],
+    ],
+    whee: [{ wave: 'sawtooth', f: [[0, 120], [0.4, 260]], dur: 0.42, vol: 0.3, formants: [600, 1000], trem: [24, 0.4] }],
+  },
+  {
+    match: [
+      [
+        { wave: 'square', f: [[0, 500]], dur: 0.07, vol: 0.18, lp: 2000 },
+        { wave: 'square', f: [[0, 330]], dur: 0.09, vol: 0.18, lp: 2000, at: 0.08 },
+      ],
+      [{ wave: 'square', f: [[0, 260], [0.4, 700]], dur: 0.42, vol: 0.17, lp: 2400, q: 6, vib: [24, 120] }],
+    ],
+    whee: [{ wave: 'square', f: [[0, 300], [0.4, 1000]], dur: 0.42, vol: 0.14, lp: 2600, vib: [20, 80] }],
+  },
+  {
+    match: [
+      [{ wave: 'sawtooth', f: [[0, 420], [0.06, 640], [0.16, 520]], dur: 0.18, vol: 0.32, formants: [900, 1600] }],
+      [{ wave: 'sawtooth', f: [[0, 200], [0.3, 330], [0.45, 210]], dur: 0.46, vol: 0.36, formants: [700, 1150], trem: [26, 0.35] }],
+    ],
+    whee: [{ wave: 'sawtooth', f: [[0, 300], [0.36, 800]], dur: 0.38, vol: 0.28, formants: [800, 1400] }],
+  },
+  {
+    match: [
+      [
+        { wave: 'triangle', f: [[0, 380], [0.15, 420]], dur: 0.17, vol: 0.34, vib: [6, 20] },
+        { wave: 'triangle', f: [[0, 560], [0.25, 620]], dur: 0.27, vol: 0.36, vib: [6, 30], at: 0.18 },
+      ],
+      [
+        { wave: 'triangle', f: [[0, 900], [0.05, 800]], dur: 0.06, vol: 0.3 },
+        { wave: 'triangle', f: [[0, 1000], [0.05, 880]], dur: 0.07, vol: 0.3, at: 0.1 },
+      ],
+    ],
+    whee: [{ wave: 'triangle', f: [[0, 350], [0.45, 950]], dur: 0.48, vol: 0.3, vib: [6, 40], attack: 0.05 }],
+  },
+  {
+    match: [
+      [{ wave: 'square', f: [[0, 1760], [0.3, 1700]], dur: 0.32, vol: 0.12, lp: 5000 }],
+      [0, 1, 2, 3].map((i) => ({ wave: 'square', f: [[0, 1300 + i * 150], [0.04, 1600 + i * 150]], dur: 0.045, vol: 0.12, lp: 4500, at: i * 0.06 })),
+    ],
+    whee: [{ wave: 'square', f: [[0, 800], [0.3, 2200]], dur: 0.32, vol: 0.1, lp: 5000 }],
+  },
+  {
+    match: [
+      [{ wave: 'sine', f: [[0, 500], [0.12, 260]], dur: 0.14, vol: 0.38 }],
+      [
+        { wave: 'triangle', f: [[0, 240], [0.07, 640], [0.12, 300]], dur: 0.13, vol: 0.34 },
+        { wave: 'triangle', f: [[0, 300], [0.07, 760], [0.12, 360]], dur: 0.13, vol: 0.34, at: 0.14 },
+      ],
+    ],
+    whee: [{ wave: 'triangle', f: [[0, 250], [0.1, 700], [0.2, 400], [0.36, 1000]], dur: 0.38, vol: 0.28 }],
+  },
+];
+EXTRA.forEach((x, i) => {
+  VOICES[i].matches = [VOICES[i].match, ...x.match];
+  VOICES[i].whee = x.whee;
+});
 
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
@@ -69,7 +190,7 @@ export class Sound {
     this.sfxOn = true;
     this.musicOn = true;
     this.lastPlayed = new Map();
-    this.music = { step: 0, next: 0, timer: null };
+    this.music = { step: 0, next: 0, timer: null, song: 'title', want: 'title' };
   }
 
   /** Must be called from a user gesture before anything is audible. */
@@ -226,7 +347,18 @@ export class Sound {
     const gap = mood === 'land' ? 0.05 : 0.07;
     if (!when && !this.throttle(`m${type}${mood}`, gap)) return;
     const wobble = 0.94 + Math.random() * 0.12;
-    for (const spec of VOICES[type][mood]) this.tone(spec, pitch * wobble, when);
+    const v = VOICES[type];
+    const specs = mood === 'match' ? v.matches[Math.floor(Math.random() * v.matches.length)] : v[mood];
+    for (const spec of specs) this.tone(spec, pitch * wobble, when);
+  }
+
+  /** Everybody cheers, one after another. */
+  chorus() {
+    if (!this.ready() || !this.sfxOn) return;
+    [0, 3, 1, 4, 2, 5].forEach((type, i) => {
+      const specs = VOICES[type].matches[0];
+      for (const spec of specs) this.tone(spec, 1.15 + i * 0.03, 0.9 + i * 0.13);
+    });
   }
 
   pop(pitch = 1, when = 0) {
@@ -238,6 +370,18 @@ export class Sound {
   swap() {
     if (!this.ready()) return;
     this.noise({ dur: 0.14, vol: 0.18, type: 'bandpass', f0: 700, f1: 2600, q: 2 });
+  }
+
+  tok() {
+    if (!this.ready()) return;
+    this.tone({ wave: 'triangle', f: [[0, 520], [0.05, 380]], dur: 0.06, vol: 0.2 });
+  }
+
+  crack(hpLeft) {
+    if (!this.ready()) return;
+    this.noise({ dur: 0.08, vol: 0.35, type: 'highpass', f0: 2500, f1: 1200 });
+    this.tone({ wave: 'square', f: [[0, hpLeft ? 900 : 1200], [0.04, 500]], dur: 0.05, vol: 0.08, lp: 3000 });
+    if (!hpLeft) this.noise({ dur: 0.2, vol: 0.3, type: 'bandpass', f0: 1800, f1: 600, q: 1.5, when: 0.04 });
   }
 
   click() {
@@ -325,50 +469,72 @@ export class Sound {
     this.music.timer = null;
   }
 
+  /** Per-world twist on the gameplay tune: key, tempo and lead voice. */
+  setFlavor(world) {
+    const F = [
+      { transpose: 0, bpm: 1, lead: null },
+      { transpose: 2, bpm: 0.95, lead: 'triangle', lp: 3000 },
+      { transpose: -3, bpm: 0.85, lead: 'sine', lp: 4000 },
+      { transpose: 5, bpm: 1.08, lead: 'square', lp: 3000 },
+      { transpose: -5, bpm: 1.04, lead: 'sawtooth', lp: 1500 },
+    ];
+    this.music.flavor = F[world % F.length];
+  }
+
+  /** Speed the music up a little when moves are running out. */
+  setTension(on) {
+    this.music.tension = on;
+  }
+
+  /** Switch tune; the change happens at the start of the next bar. */
+  setSong(name) {
+    if (name === 'title') this.music.tension = false;
+    if (!SONGS[name] || this.music.want === name) return;
+    this.music.want = name;
+  }
+
   scheduleMusic() {
     const ctx = this.ctx;
     if (ctx.state !== 'running') return;
-    const stepDur = 60 / 116 / 2;
-    // Melody (MIDI notes, 0 = rest), 4 bars of eighth notes.
-    const mel = [
-      72, 0, 76, 79, 76, 0, 74, 72,
-      69, 0, 72, 76, 74, 72, 69, 0,
-      65, 69, 72, 0, 74, 72, 69, 67,
-      67, 0, 71, 74, 79, 0, 77, 74,
-    ];
-    const roots = [48, 45, 41, 43];
-    const bassPat = [0, null, 12, null, 7, null, 12, 7];
     if (this.music.next < ctx.currentTime) this.music.next = ctx.currentTime + 0.05;
     while (this.music.next < ctx.currentTime + 0.15) {
+      if (this.music.step % 8 === 0 && this.music.want && this.music.want !== this.music.song) {
+        this.music.song = this.music.want;
+        this.music.step = 0;
+      }
+      const song = SONGS[this.music.song || 'title'];
+      const fl = (this.music.song === 'game' && this.music.flavor) || { transpose: 0, bpm: 1 };
+      const stepDur = 60 / (song.bpm * fl.bpm * (this.music.tension ? 1.14 : 1)) / 2;
       const s = this.music.step % 32;
       const loop = Math.floor(this.music.step / 32);
       const when = this.music.next - ctx.currentTime;
       const bar = Math.floor(s / 8);
-      const b = bassPat[s % 8];
+      const b = song.bass[s % 8];
       if (b !== null) {
-        this.tone({ wave: 'triangle', f: [[0, midi(roots[bar] + b)]], dur: stepDur * 0.9, vol: 0.5 }, 1, when, this.musicBus);
+        this.tone({ wave: 'triangle', f: [[0, midi(song.roots[bar] + b + fl.transpose)]], dur: stepDur * 0.9, vol: 0.5 }, 1, when, this.musicBus);
       }
-      const n = mel[s];
+      const n = song.mel[s];
       if (n && loop % 4 !== 3) {
-        const up = loop % 2 ? 12 : 0;
-        this.tone({ wave: 'square', f: [[0, midi(n + up)]], dur: stepDur * 0.8, vol: 0.16, lp: 2400 }, 1, when, this.musicBus);
+        const up = song.octaveUp && loop % 2 ? 12 : 0;
+        this.tone({ wave: fl.lead || song.lead, f: [[0, midi(n + up + fl.transpose)]], dur: stepDur * 0.8, vol: song.leadVol, lp: fl.lp || song.lp }, 1, when, this.musicBus);
       }
-      if (s % 2 === 1) {
+      if (s % 2 === 1 || (song.drive && s % 8 === 0)) {
         const t0 = ctx.currentTime + when;
         const src = ctx.createBufferSource();
         src.buffer = this.noiseBuf;
         const hp = ctx.createBiquadFilter();
-        hp.type = 'highpass';
-        hp.frequency.value = 7000;
+        hp.type = s % 2 ? 'highpass' : 'lowpass';
+        hp.frequency.value = s % 2 ? 7000 : 400;
         const env = ctx.createGain();
-        env.gain.setValueAtTime(0.12, t0);
-        env.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.04);
+        env.gain.setValueAtTime(s % 2 ? 0.12 : 0.5, t0);
+        env.gain.exponentialRampToValueAtTime(0.0001, t0 + (s % 2 ? 0.04 : 0.12));
         src.connect(hp).connect(env).connect(this.musicBus);
         src.start(t0, Math.random() * 0.5);
-        src.stop(t0 + 0.05);
+        src.stop(t0 + 0.15);
       }
       this.music.next += stepDur;
       this.music.step++;
     }
   }
+
 }

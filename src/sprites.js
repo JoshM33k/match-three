@@ -8,8 +8,11 @@
 // This module has no DOM dependencies at import time so tools can reuse it.
 
 export const SIZE = 16;
+export const EGG_TYPE = -2;
+export const GOO_TYPE = -3;
 
 const FACE = {
+  h: '#ff3f7f',
   w: '#ffffff',
   r: '#9b1b4a',
   t: '#ffffff',
@@ -40,6 +43,8 @@ export const MONSTERS = [
     ],
     face: { ex: 4, ey: 7, my: 11 },
     shine: [[4, 4], [3, 5], [7, 2]],
+    // the droplet tip wobbles
+    quirks: { q1: [[5, 0, 10, 2, -1, 0]], q2: [[5, 0, 10, 2, 1, 0]] },
   },
   {
     name: 'Grumble',
@@ -94,6 +99,8 @@ export const MONSTERS = [
     ],
     face: { ex: 4, ey: 6, my: 11, cyclops: true },
     shine: [[4, 5], [3, 6], [6, 1]],
+    // antenna sways
+    quirks: { q1: [[5, 0, 10, 3, -1, 0]], q2: [[5, 0, 10, 3, 1, 0]] },
   },
   {
     name: 'Fuzz',
@@ -118,6 +125,8 @@ export const MONSTERS = [
     ],
     face: { ex: 4, ey: 6, my: 10 },
     shine: [[4, 5], [5, 4]],
+    // ear twitches (left / right)
+    quirks: { q1: [[1, 0, 4, 2, 0, 1]], q2: [[11, 0, 14, 2, 0, 1]] },
     mouths: {
       idle: ['kkkk', '.tt.'],
       blink: ['kkkk', '.tt.'],
@@ -147,6 +156,8 @@ export const MONSTERS = [
     ],
     face: { ex: 4, ey: 6, my: 10 },
     shine: [[4, 4], [3, 5], [6, 3]],
+    // ghostly skirt flutters
+    quirks: { q1: [[0, 13, 15, 14, 1, 0]], q2: [[0, 13, 15, 14, -1, 0]] },
     mouths: {
       idle: ['kk', 'kk'],
       blink: ['kk', 'kk'],
@@ -175,6 +186,35 @@ export const MONSTERS = [
     ],
     face: { ex: 5, ey: 6, my: 9 },
     shine: [[7, 2], [6, 4]],
+    // waves an arm
+    quirks: { q1: [[0, 5, 2, 6, 0, -1]], q2: [[13, 5, 15, 6, 0, -1]] },
+  },
+  {
+    name: 'Shroomy',
+    colors: { o: '#5a1420', s: '#c02a3a', b: '#ff4a5a', l: '#ff9aa0', a: '#fff1d6', as: '#e6cfa6', k: '#4a2010', p: '#ff8fa0' },
+    half: [
+      '........',
+      '....####',
+      '..######',
+      '.#######',
+      '.#######',
+      '.#######',
+      '..######',
+      '...aaaaa',
+      '...aaaaa',
+      '...aaaaa',
+      '...aaaaa',
+      '...aaaaa',
+      '...aaaaa',
+      '....aaaa',
+      '........',
+      '........',
+    ],
+    face: { ex: 5, ey: 8, my: 11 },
+    spots: [[3, 3, '#ffffff'], [4, 3, '#ffffff'], [4, 4, '#ffffff'], [11, 2, '#ffffff'], [12, 2, '#ffffff'], [12, 3, '#ffffff'], [7, 4, '#ffffff'], [8, 4, '#ffffff'], [7, 5, '#ffffff']],
+    shine: [[6, 1]],
+    // the cap tilts
+    quirks: { q1: [[0, 0, 15, 6, -1, 0]], q2: [[0, 0, 15, 6, 1, 0]] },
   },
 ];
 
@@ -203,10 +243,68 @@ export const RAINBOW = {
   face: { ex: 4, ey: 6, my: 10 },
   shine: [[4, 4], [3, 5]],
 };
+// Goo is a sticky puddle under cells (only drawn as an icon via sprites).
+export const GOO = {
+  name: 'Goo',
+  colors: { o: '#6a1046', s: '#d03c8a', b: '#ff6fb4', l: '#ffb0d8', a: '#ffffff', as: '#ffffff', k: '#5a0e3a', p: '#ff3f7f' },
+  half: [
+    '........',
+    '........',
+    '........',
+    '........',
+    '.......#',
+    '......##',
+    '....####',
+    '...#####',
+    '..######',
+    '.#######',
+    '.#######',
+    '.#######',
+    '..######',
+    '...#.###',
+    '........',
+    '........',
+  ],
+  face: { ex: 4, ey: 8, my: 11 },
+  shine: [[4, 8], [7, 4]],
+};
+
+// Monster eggs are obstacles: they crack (variant 'e1') and then hatch.
+export const EGG = {
+  name: 'Egg',
+  egg: true,
+  colors: { o: '#5a3a2a', s: '#e6cfa6', b: '#fff4dc', l: '#ffffff', a: '#ffffff', as: '#ffffff', k: '#2a1a12', p: '#ffffff' },
+  half: [
+    '........',
+    '......##',
+    '.....###',
+    '....####',
+    '....####',
+    '...#####',
+    '...#####',
+    '..######',
+    '..######',
+    '..######',
+    '..######',
+    '..######',
+    '...#####',
+    '....####',
+    '.....###',
+    '........',
+  ],
+  spots: [
+    [6, 4, '#ff8fc0'], [7, 4, '#ff8fc0'], [6, 5, '#ff8fc0'], [7, 5, '#ff8fc0'],
+    [10, 6, '#7fe0a0'], [10, 7, '#7fe0a0'], [11, 7, '#7fe0a0'],
+    [4, 11, '#8fc8ff'], [5, 11, '#8fc8ff'], [4, 12, '#8fc8ff'],
+    [10, 12, '#ffc85f'], [11, 12, '#ffc85f'],
+  ],
+  shine: [[7, 2], [6, 3], [5, 4]],
+};
+
 export const RAINBOW_COLORS = ['#ff5a7a', '#ffa040', '#ffe04a', '#74e06b', '#6cc4ff', '#a47bff'];
 export const RAINBOW_FRAMES = RAINBOW_COLORS.length;
 
-export const EXPRESSIONS = ['idle', 'blink', 'happy', 'excited', 'surprised', 'squish', 'sad', 'sleepy', 'dizzy'];
+export const EXPRESSIONS = ['idle', 'blink', 'happy', 'excited', 'surprised', 'squish', 'sad', 'sleepy', 'dizzy', 'love', 'wink', 'laugh', 'yawn'];
 
 // Two-eyed faces. Patterns use: k dark, w white, r mouth, t tooth, b tear.
 // `mirror` flips the pattern for the right eye.
@@ -220,6 +318,10 @@ const EYES = {
   sad: { p: ['kkk', '.k.', '.b.'] },
   sleepy: { p: ['...', 'kkk'], dy: 1 },
   dizzy: { p: ['k.k', '.k.', 'k.k'] },
+  love: { p: ['h.h', 'hhh', '.h.'] },
+  wink: { p: ['kw', 'kk', 'kk'], left: ['..', 'k.', '.k'] },
+  laugh: { p: ['k..', '.k.', 'k..'], mirror: true },
+  yawn: { p: ['...', 'kkk'], dy: 1 },
 };
 
 const MOUTHS = {
@@ -232,6 +334,10 @@ const MOUTHS = {
   sad: ['.kk.', 'k..k'],
   sleepy: ['kk', 'kk'],
   dizzy: ['k.k.', '.k.k'],
+  love: ['k..k', '.kk.'],
+  wink: ['k..k', '.kk.'],
+  laugh: ['kkkkkk', 'krrrrk', '.kkkk.'],
+  yawn: ['kk', 'rr', 'kk'],
 };
 
 // Cyclops eyes are 4 wide; `pupil` marks where a 2x2 pupil goes (it follows
@@ -246,9 +352,13 @@ const CYCLOPS_EYES = {
   sad: { p: ['.ww.', 'wwww', 'wwww', '.ww.', '...b'], pupil: 2, pupilY: 1 },
   sleepy: { p: ['....', '....', 'kkkk', '.kk.'] },
   dizzy: { p: ['kkkk', 'k..k', 'k.kk', 'kkk.'] },
+  love: { p: ['h..h', 'hhhh', 'hhhh', '.hh.'] },
+  wink: { p: ['....', '....', 'kkkk'] },
+  laugh: { p: ['....', 'k..k', '.kk.'] },
+  yawn: { p: ['....', '....', 'kkkk'] },
 };
 
-const CHEEKS = new Set(['idle', 'blink', 'happy', 'excited', 'squish', 'sleepy']);
+const CHEEKS = new Set(['idle', 'blink', 'happy', 'excited', 'squish', 'sleepy', 'love', 'wink', 'laugh']);
 
 function rgb(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -267,11 +377,28 @@ function expandMask(half) {
 }
 
 const maskCache = new Map();
-function maskFor(def) {
-  let m = maskCache.get(def);
+function maskFor(def, variant = 'n') {
+  const q = def.quirks && def.quirks[variant];
+  const k = q ? `${def.name}|${variant}` : def;
+  let m = maskCache.get(k);
   if (!m) {
     m = expandMask(def.half);
-    maskCache.set(def, m);
+    // Quirk frames nudge a rectangle of the mask: [x0, y0, x1, y1, dx, dy].
+    for (const [x0, y0, x1, y1, dx, dy] of q || []) {
+      const cut = [];
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          cut.push([x, y, m[y][x]]);
+          m[y][x] = '.';
+        }
+      }
+      for (const [x, y, ch] of cut) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (ch !== '.' && nx >= 0 && ny >= 0 && nx < SIZE && ny < SIZE) m[ny][nx] = ch;
+      }
+    }
+    maskCache.set(k, m);
   }
   return m;
 }
@@ -281,12 +408,12 @@ function maskFor(def) {
  * @param {object} def        entry of MONSTERS or RAINBOW
  * @param {string} expr       one of EXPRESSIONS
  * @param {number} lx, ly     look direction (-1..1)
- * @param {string} variant    'n' | 'lh' | 'lv' | 'b0' | 'b1' | 'rb'
+ * @param {string} variant    'n' | 'lh' | 'lv' | 'b0' | 'b1' | 'rb' | 'q1' | 'q2' (idle quirk frames)
  * @param {number} frame      animation frame (rainbow colour offset)
  * @returns {(string|null)[]} SIZE*SIZE hex colours (null = transparent)
  */
 export function buildPixels(def, expr = 'idle', lx = 0, ly = 0, variant = 'n', frame = 0) {
-  const m = maskFor(def);
+  const m = maskFor(def, variant);
   const C = def.colors;
   const px = new Array(SIZE * SIZE).fill(null);
   const at = (x, y) => (x < 0 || y < 0 || x >= SIZE || y >= SIZE ? '.' : m[y][x]);
@@ -358,8 +485,27 @@ export function buildPixels(def, expr = 'idle', lx = 0, ly = 0, variant = 'n', f
     }
   }
 
-  drawFace(def, expr, lx, ly, set);
+  if (def.egg) drawEgg(def, variant, lx, set);
+  else {
+    if (def.spots) {
+      const dx = variant === 'q1' ? -1 : variant === 'q2' ? 1 : 0;
+      for (const [x, y, c] of def.spots) if (solid(x + dx, y)) set(x + dx, y, c);
+    }
+    drawFace(def, expr, lx, ly, set);
+  }
   return px;
+}
+
+function drawEgg(def, variant, lx, set) {
+  for (const [x, y, c] of def.spots) set(x, y, c);
+  if (variant !== 'e1') return;
+  // a zig-zag crack with a baby monster peeking out
+  const crack = [[3, 8], [4, 7], [5, 8], [6, 9], [7, 8], [8, 8], [9, 9], [10, 8], [11, 7], [12, 8]];
+  for (const [x, y] of crack) set(x, y, def.colors.o);
+  set(6 + lx, 10, def.colors.k);
+  set(9 + lx, 10, def.colors.k);
+  set(6 + lx, 11, def.colors.k);
+  set(9 + lx, 11, def.colors.k);
 }
 
 function stamp(pattern, x0, y0, colors, set, mirror = false) {
@@ -396,7 +542,7 @@ function drawFace(def, expr, lx, ly, set) {
     const xl = f.ex + 2 - w + lx;
     const xr = SIZE - (f.ex + 2 - w) - w + lx;
     const y0 = f.ey + (eye.dy || 0) + ly;
-    stamp(eye.p, xl, y0, colors, set);
+    stamp(eye.left || eye.p, xl, y0, colors, set);
     stamp(eye.p, xr, y0, colors, set, eye.mirror);
   }
 
@@ -439,20 +585,38 @@ function toCanvas(pixels) {
 
 /** Cached sprite canvas for a monster type (-1 = rainbow). */
 export function getSprite(type, expr, lx = 0, ly = 0, variant = 'n', frame = 0) {
+  if (type === EGG_TYPE) {
+    expr = 'idle';
+    ly = 0;
+    frame = 0;
+  }
   const key = `${type}|${expr}|${lx}|${ly}|${variant}|${frame}`;
   let c = spriteCache.get(key);
   if (!c) {
-    const def = type < 0 ? RAINBOW : MONSTERS[type];
-    c = toCanvas(buildPixels(def, expr, lx, ly, type < 0 ? 'rb' : variant, frame));
+    let def = MONSTERS[type];
+    let v = variant;
+    if (type === EGG_TYPE) {
+      def = EGG;
+      v = variant === 'e1' ? 'e1' : 'e2';
+    } else if (type === GOO_TYPE) {
+      def = GOO;
+      v = 'n';
+    } else if (type < 0) {
+      def = RAINBOW;
+      v = 'rb';
+    }
+    c = toCanvas(buildPixels(def, expr, lx, ly, v, frame));
     spriteCache.set(key, c);
   }
   return c;
 }
 
 export function monsterColor(type) {
+  if (type === EGG_TYPE) return EGG.colors.b;
   return type < 0 ? '#ffffff' : MONSTERS[type].colors.b;
 }
 
 export function monsterLight(type) {
+  if (type === EGG_TYPE) return EGG.colors.s;
   return type < 0 ? '#ffffff' : MONSTERS[type].colors.l;
 }
