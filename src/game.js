@@ -206,13 +206,13 @@ export class Game {
     if (o.kind === 'win') {
       return [
         btn('NEXT', 'play', by + 6, '#74e06b', '#3f9e4f', () => this.start(this.level.n + 1)),
-        btn('MENU', 'home', by + 28, '#a47bff', '#6a44b8', () => a.toTitle()),
+        btn('MAP', 'map', by + 28, '#a47bff', '#6a44b8', () => a.toMap(this.level.n + (o.kind === 'win' ? 1 : 0))),
       ];
     }
     if (o.kind === 'lose') {
       return [
         btn('RETRY', 'retry', by + 6, '#ff7eb6', '#c2407e', () => this.start(this.level.n)),
-        btn('MENU', 'home', by + 28, '#a47bff', '#6a44b8', () => a.toTitle()),
+        btn('MAP', 'map', by + 28, '#a47bff', '#6a44b8', () => a.toMap(this.level.n + (o.kind === 'win' ? 1 : 0))),
       ];
     }
     if (o.kind === 'pause') {
@@ -228,7 +228,7 @@ export class Game {
           a.toggleSfx();
           this.setButtons();
         }),
-        btn('MENU', 'home', y0 + 88, '#a47bff', '#6a44b8', () => a.toTitle()),
+        btn('MAP', 'map', y0 + 88, '#a47bff', '#6a44b8', () => a.toMap(this.level.n)),
       ];
     }
     return [];

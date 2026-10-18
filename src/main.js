@@ -3,6 +3,7 @@ import { Sound } from './audio.js';
 import { Background } from './background.js';
 import { Game } from './game.js';
 import { Title } from './title.js';
+import { LevelMap } from './map.js';
 import { load, save } from './storage.js';
 
 const canvas = document.getElementById('screen');
@@ -46,6 +47,9 @@ const app = {
   },
   toTitle() {
     this.screen = new Title(this);
+  },
+  toMap(focus) {
+    this.screen = new LevelMap(this, focus);
   },
 };
 
@@ -110,6 +114,16 @@ canvas.addEventListener('pointercancel', end);
 canvas.addEventListener('pointerleave', (e) => {
   if (e.pointerType === 'mouse') app.pointer.active = false;
 });
+canvas.addEventListener(
+  'wheel',
+  (e) => {
+    if (app.screen.wheel) {
+      e.preventDefault();
+      app.screen.wheel(e.deltaY / app.scale);
+    }
+  },
+  { passive: false }
+);
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 document.addEventListener('gesturestart', (e) => e.preventDefault());
 window.addEventListener('keydown', (e) => {

@@ -180,6 +180,8 @@ const ICONS = {
   retry: ['.###.', '#...#', '#.###', '#..#.', '.##..'],
   home: ['..#..', '.###.', '#####', '.#.#.', '.###.'],
   arrowR: ['#..', '##.', '###', '##.', '#..'],
+  lock: ['.#.', '#.#', '###', '###', '###'],
+  map: ['.###.', '##.##', '.###.', '..#..', '..#..'],
   arrowL: ['..#', '.##', '###', '.##', '..#'],
   arrowU: ['..#..', '.###.', '#####'],
   arrowD: ['#####', '.###.', '..#..'],
@@ -208,6 +210,17 @@ export function iconOutlined(ctx, name, x, y, color, outline, scale = 1) {
     icon(ctx, name, x + dx, y + dy, outline, scale);
   }
   icon(ctx, name, x, y, color, scale);
+}
+
+/** Filled pixel disc. */
+export function fillCircle(ctx, cx, cy, r, color) {
+  ctx.fillStyle = color;
+  cx = Math.round(cx);
+  cy = Math.round(cy);
+  for (let y = -r; y <= r; y++) {
+    const w = Math.floor(Math.sqrt(r * r - y * y + r * 0.8));
+    ctx.fillRect(cx - w, cy + y, w * 2 + 1, 1);
+  }
 }
 
 /** Bresenham line of square pixels. */

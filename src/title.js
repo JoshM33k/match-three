@@ -20,7 +20,7 @@ export class Title {
     const by = Math.max(this.paradeY + 50, Math.floor(vh * 0.62));
     const s = this.app.settings;
     this.buttons = [
-      new Button({ label: 'PLAY', icon: 'play', x: cx - 45, y: by, w: 90, h: 22, color: '#74e06b', shade: '#3f9e4f', onClick: () => this.app.play(s.level) }),
+      new Button({ label: 'PLAY', icon: 'play', x: cx - 45, y: by, w: 90, h: 22, color: '#74e06b', shade: '#3f9e4f', onClick: () => (s.level > 1 ? this.app.toMap() : this.app.play(1)) }),
       new Button({
         icon: 'music',
         x: cx - 24,
@@ -48,11 +48,6 @@ export class Title {
         },
       }),
     ];
-    if (s.level > 1) {
-      this.buttons.push(
-        new Button({ label: 'NEW GAME', x: cx - 34, y: by + 58, w: 68, h: 16, color: '#a47bff', shade: '#6a44b8', onClick: () => this.app.play(1) })
-      );
-    }
   }
 
   monsterRect(i) {
