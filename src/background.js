@@ -1,7 +1,46 @@
 // Dithered pixel sky with drifting clouds, twinkling stars and hills full
 // of shy blinking eyes.
 
-const SKY = ['#2a1a5e', '#3d2a7f', '#58399e', '#7a4cb8', '#a35ec4', '#cf72c8', '#f08ac4', '#ffa9c6'];
+// One theme per world (ten levels each), cycling after the last.
+export const WORLDS = [
+  {
+    name: 'TWILIGHT HILLS',
+    sky: ['#2a1a5e', '#3d2a7f', '#58399e', '#7a4cb8', '#a35ec4', '#cf72c8', '#f08ac4', '#ffa9c6'],
+    hills: ['#7b3d9e', '#5a2a80', '#3e1b62'],
+    cloud: '255,220,250',
+    eyes: '#ffe9a8',
+  },
+  {
+    name: 'MINT MEADOW',
+    sky: ['#16324a', '#1d4a5a', '#24656a', '#2f8274', '#4aa07e', '#74bc88', '#a6d898', '#dcf0b4'],
+    hills: ['#3f8a5a', '#2c6a48', '#1c4a36'],
+    cloud: '230,255,235',
+    eyes: '#fff6a8',
+  },
+  {
+    name: 'STARRY SEA',
+    sky: ['#070c2a', '#0e1a46', '#162a64', '#1f3e84', '#2c58a2', '#4478bc', '#689ed4', '#9cc8ea'],
+    hills: ['#24508e', '#1a3a70', '#102650'],
+    cloud: '210,230,255',
+    eyes: '#a8f0ff',
+  },
+  {
+    name: 'CANDY CLOUDS',
+    sky: ['#4a2066', '#6a2e84', '#8e3ea0', '#b052b2', '#d070c0', '#e894ca', '#f6b8d8', '#ffdcea'],
+    hills: ['#e070b0', '#b04a90', '#803070'],
+    cloud: '255,240,250',
+    eyes: '#ffffff',
+  },
+  {
+    name: 'EMBER PEAKS',
+    sky: ['#1e0814', '#3a0e1c', '#5a1620', '#7c2422', '#a23e26', '#c4622c', '#e09038', '#f4c464'],
+    hills: ['#7a2a24', '#561a1c', '#360e14'],
+    cloud: '255,200,170',
+    eyes: '#ffd060',
+  },
+];
+
+export const worldFor = (level) => Math.floor((Math.max(1, level) - 1) / 10) % WORLDS.length;
 const BAYER = [
   [0, 8, 2, 10],
   [12, 4, 14, 6],
@@ -19,6 +58,7 @@ const CLOUD = [
 
 export class Background {
   constructor() {
+    this.theme = 0;
     this.w = 0;
     this.h = 0;
     this.sky = null;
@@ -27,8 +67,17 @@ export class Background {
     this.eyes = [];
   }
 
+  setTheme(i) {
+    if (i === this.theme) return;
+    this.theme = i;
+    const { w, h } = this;
+    this.w = 0;
+    if (w) this.resize(w, h);
+  }
+
   resize(w, h) {
     if (w === this.w && h === this.h) return;
+    const SKY = WORLDS[this.theme].sky;
     this.w = w;
     this.h = h;
     const c = document.createElement('canvas');
@@ -66,9 +115,9 @@ export class Background {
 
   drawHills(g, w, h) {
     const layers = [
-      { base: h - 34, amp: 7, freq: 0.045, color: '#7b3d9e', ph: 0.5 },
-      { base: h - 20, amp: 6, freq: 0.06, color: '#5a2a80', ph: 2.1 },
-      { base: h - 9, amp: 4, freq: 0.08, color: '#3e1b62', ph: 4.0 },
+      { base: h - 34, amp: 7, freq: 0.045, color: WORLDS[this.theme].hills[0], ph: 0.5 },
+      { base: h - 20, amp: 6, freq: 0.06, color: WORLDS[this.theme].hills[1], ph: 2.1 },
+      { base: h - 9, amp: 4, freq: 0.08, color: WORLDS[this.theme].hills[2], ph: 4.0 },
     ];
     this.eyes = [];
     let seed = 7;
@@ -109,7 +158,7 @@ export class Background {
     }
     for (const c of this.clouds) {
       const x = Math.round(((c.x + time * c.v) % (this.w + 40)) - 20);
-      ctx.fillStyle = `rgba(255,220,250,${c.a})`;
+      ctx.fillStyle = `rgba(${WORLDS[this.theme].cloud},${c.a})`;
       for (let r = 0; r < CLOUD.length; r++) {
         for (let i = 0; i < CLOUD[r].length; i++) {
           if (CLOUD[r][i] === '#') ctx.fillRect(x + i * 2, c.y + r * 2, 2, 2);
@@ -120,7 +169,7 @@ export class Background {
       const t = (time + e.p) % e.period;
       if (t < 0.15 || t > e.period - 0.3) continue; // blink / hide
       const look = Math.sin((time + e.p) * 0.7) > 0.5 ? 1 : 0;
-      ctx.fillStyle = '#ffe9a8';
+      ctx.fillStyle = WORLDS[this.theme].eyes;
       ctx.fillRect(e.x, e.y, 2, 2);
       ctx.fillRect(e.x + 4, e.y, 2, 2);
       ctx.fillStyle = '#1a0b2e';

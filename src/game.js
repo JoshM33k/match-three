@@ -16,6 +16,7 @@ import {
 import { getSprite, monsterColor, monsterLight, RAINBOW_COLORS, RAINBOW_FRAMES, EGG_TYPE, GOO_TYPE, MONSTERS } from './sprites.js';
 import { drawText, panel, roundRect, icon, iconOutlined, Button, pixelLine, pixelCircle, textWidth, wrapText, pattern, HAND } from './pixel.js';
 import { getLevel, getZenLevel, ROWS, COLS } from './levels.js';
+import { WORLDS, worldFor } from './background.js';
 
 const POP_GROW = 0.1;
 const POP_TIME = 0.3;
@@ -266,7 +267,10 @@ export class Game {
       new Button({ label, icon: ic, x: cx - Math.floor(w / 2), y: yy, w, h: 18, color, shade, onClick });
     if (o.kind === 'win') {
       return [
-        btn('NEXT', 'play', by + 6, '#74e06b', '#3f9e4f', () => this.start(this.level.n + 1)),
+        btn('NEXT', 'play', by + 6, '#74e06b', '#3f9e4f', () => {
+          a.setWorld(this.level.n + 1);
+          this.start(this.level.n + 1);
+        }),
         btn('MAP', 'map', by + 28, '#a47bff', '#6a44b8', () => a.toMap(this.level.n + (o.kind === 'win' ? 1 : 0))),
       ];
     }
@@ -1907,6 +1911,7 @@ export class Game {
         drawText(ctx, 'NO MOVES, NO GOALS. JUST MONSTERS.', cx + off, y + 30, { color: '#ffffff', align: 'center' });
         return;
       }
+      if (!this.boss) drawText(ctx, WORLDS[worldFor(this.level.n)].name, cx + off, y - 8, { color: '#ffe9f4', align: 'center', outline: '#140726' });
       drawText(ctx, 'LEVEL ' + this.level.n, cx + off, y + 7, { color: '#ffe04a', scale: 3, align: 'center', outline: '#140726' });
       const goalText = this.boss ? 'DEFEAT ' + this.boss.name + ' IN ' + this.level.moves + ' MOVES' : 'SCORE ' + this.level.target + ' IN ' + this.level.moves + ' MOVES';
       if (this.boss) drawText(ctx, 'BOSS BATTLE!', cx + off, y - 9, { color: '#ff8fa8', scale: 2, align: 'center', outline: '#140726' });

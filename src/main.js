@@ -1,6 +1,6 @@
 // Boots the game: sets up the pixel canvas, input, audio and screens.
 import { Sound } from './audio.js';
-import { Background } from './background.js';
+import { Background, worldFor } from './background.js';
 import { Game } from './game.js';
 import { Title } from './title.js';
 import { LevelMap } from './map.js';
@@ -41,13 +41,18 @@ const app = {
     this.audio.setMusic(this.settings.music);
     this.persist();
   },
+  setWorld(level) {
+    this.background.setTheme(worldFor(level));
+  },
   play(level) {
+    this.setWorld(level === 'zen' ? 1 : level);
     this.game = new Game(this);
     this.game.start(level);
     this.screen = this.game;
   },
   toTitle() {
     this.persist();
+    this.setWorld(this.settings.level);
     this.audio.setSong('title');
     this.screen = new Title(this);
   },
@@ -56,6 +61,7 @@ const app = {
     this.screen = new Book(this);
   },
   toMap(focus) {
+    this.setWorld(focus || this.settings.level);
     this.audio.setSong('title');
     this.screen = new LevelMap(this, focus);
   },

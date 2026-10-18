@@ -1,6 +1,7 @@
 // Level map: a winding path of levels you scroll through, with stars earned
 // and a monster bouncing on the level you're up to.
 import { getSprite, MONSTERS } from './sprites.js';
+import { WORLDS, worldFor } from './background.js';
 import { drawText, Button, icon, iconOutlined, fillCircle, panel, pattern } from './pixel.js';
 
 const SPACING = 38;
@@ -83,8 +84,18 @@ export class LevelMap {
       const x = this.nodeX(n);
       const y = this.nodeY(n) + off;
       if (y < -30 || y > vh + 30) continue;
+      if (n % 10 === 1) {
+        // world banner below the first level of each world
+        const name = WORLDS[worldFor(n)].name;
+        const by = y + Math.floor(SPACING / 2) - 6;
+        panel(ctx, Math.floor(vw / 2) - 50, by, 100, 13, 'rgba(26,11,46,0.8)', '#ffe04a', 3);
+        drawText(ctx, name, Math.floor(vw / 2), by + 4, { color: '#ffe04a', align: 'center' });
+      }
       this.drawNode(ctx, n, x, y);
     }
+    // the sky follows the world in the middle of the screen
+    const mid = Math.max(1, Math.min(this.count, Math.round(this.count - (this.scroll + vh / 2 - 40) / SPACING)));
+    this.app.setWorld(mid);
 
     // header
     panel(ctx, 0, 0, vw, this.app.safeTop + 28, 'rgba(26,11,46,0.85)', null, 0);
