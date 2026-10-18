@@ -12,6 +12,7 @@ export const EGG_TYPE = -2;
 export const GOO_TYPE = -3;
 
 const FACE = {
+  h: '#ff3f7f',
   w: '#ffffff',
   r: '#9b1b4a',
   t: '#ffffff',
@@ -276,7 +277,7 @@ export const EGG = {
 export const RAINBOW_COLORS = ['#ff5a7a', '#ffa040', '#ffe04a', '#74e06b', '#6cc4ff', '#a47bff'];
 export const RAINBOW_FRAMES = RAINBOW_COLORS.length;
 
-export const EXPRESSIONS = ['idle', 'blink', 'happy', 'excited', 'surprised', 'squish', 'sad', 'sleepy', 'dizzy'];
+export const EXPRESSIONS = ['idle', 'blink', 'happy', 'excited', 'surprised', 'squish', 'sad', 'sleepy', 'dizzy', 'love', 'wink', 'laugh', 'yawn'];
 
 // Two-eyed faces. Patterns use: k dark, w white, r mouth, t tooth, b tear.
 // `mirror` flips the pattern for the right eye.
@@ -290,6 +291,10 @@ const EYES = {
   sad: { p: ['kkk', '.k.', '.b.'] },
   sleepy: { p: ['...', 'kkk'], dy: 1 },
   dizzy: { p: ['k.k', '.k.', 'k.k'] },
+  love: { p: ['h.h', 'hhh', '.h.'] },
+  wink: { p: ['kw', 'kk', 'kk'], left: ['..', 'k.', '.k'] },
+  laugh: { p: ['k..', '.k.', 'k..'], mirror: true },
+  yawn: { p: ['...', 'kkk'], dy: 1 },
 };
 
 const MOUTHS = {
@@ -302,6 +307,10 @@ const MOUTHS = {
   sad: ['.kk.', 'k..k'],
   sleepy: ['kk', 'kk'],
   dizzy: ['k.k.', '.k.k'],
+  love: ['k..k', '.kk.'],
+  wink: ['k..k', '.kk.'],
+  laugh: ['kkkkkk', 'krrrrk', '.kkkk.'],
+  yawn: ['kk', 'rr', 'kk'],
 };
 
 // Cyclops eyes are 4 wide; `pupil` marks where a 2x2 pupil goes (it follows
@@ -316,9 +325,13 @@ const CYCLOPS_EYES = {
   sad: { p: ['.ww.', 'wwww', 'wwww', '.ww.', '...b'], pupil: 2, pupilY: 1 },
   sleepy: { p: ['....', '....', 'kkkk', '.kk.'] },
   dizzy: { p: ['kkkk', 'k..k', 'k.kk', 'kkk.'] },
+  love: { p: ['h..h', 'hhhh', 'hhhh', '.hh.'] },
+  wink: { p: ['....', '....', 'kkkk'] },
+  laugh: { p: ['....', 'k..k', '.kk.'] },
+  yawn: { p: ['....', '....', 'kkkk'] },
 };
 
-const CHEEKS = new Set(['idle', 'blink', 'happy', 'excited', 'squish', 'sleepy']);
+const CHEEKS = new Set(['idle', 'blink', 'happy', 'excited', 'squish', 'sleepy', 'love', 'wink', 'laugh']);
 
 function rgb(hex) {
   const n = parseInt(hex.slice(1), 16);
@@ -496,7 +509,7 @@ function drawFace(def, expr, lx, ly, set) {
     const xl = f.ex + 2 - w + lx;
     const xr = SIZE - (f.ex + 2 - w) - w + lx;
     const y0 = f.ey + (eye.dy || 0) + ly;
-    stamp(eye.p, xl, y0, colors, set);
+    stamp(eye.left || eye.p, xl, y0, colors, set);
     stamp(eye.p, xr, y0, colors, set, eye.mirror);
   }
 

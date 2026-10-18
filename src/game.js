@@ -420,6 +420,7 @@ export class Game {
     this.idleT = 0;
     this.hint = null;
     this.eachTile((t) => {
+      t.sleepAt = 0;
       if (t.sleepy) {
         t.sleepy = false;
         t.say('surprised', 0.35);
@@ -734,6 +735,10 @@ export class Game {
       this.effects.push({ kind: 'ring', r, c, t: 0, color: '#ffffff' });
       this.audio.special(1 + this.combo * 0.05);
       this.app.buzz(18);
+      for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) {
+        const n = grid[r + dr] && grid[r + dr][c + dc];
+        if (n && n.type >= 0 && !n.special) n.say('love', 0.9);
+      }
       const kind = g.special === 'lineH' || g.special === 'lineV' ? 'line' : g.special;
       this.stats.made = this.stats.made || {};
       this.stats.made[kind] = (this.stats.made[kind] || 0) + 1;
@@ -1034,7 +1039,10 @@ export class Game {
       const r = Math.floor(Math.random() * ROWS);
       const c = Math.floor(Math.random() * COLS);
       const t = this.grid[r][c];
-      if (t && !this.isHint(r, c)) t.sleepy = true;
+      if (t && !this.isHint(r, c) && !t.sleepy && t.exprT <= 0) {
+        t.say('yawn', 0.9);
+        t.sleepAt = 0.9;
+      }
     }
     // every now and then somebody does a happy little hop
     if (Math.random() < dt * 0.7) {
@@ -1058,6 +1066,8 @@ export class Game {
       t.blinkT -= dt;
       if (t.blinkT <= 0) {
         t.blink = 0.13;
+        t.wink = Math.random() < 0.15;
+        if (t.wink) t.blink = 0.35;
         t.blinkT = 1.5 + Math.random() * 4.5;
       }
       if (t.blink > 0) t.blink -= dt;
@@ -1069,11 +1079,15 @@ export class Game {
         t.glanceY = Math.random() < 0.8 ? 0 : Math.random() < 0.5 ? -1 : 1;
       }
       if (t.shake > 0) t.shake -= dt;
+      if (t.sleepAt > 0) {
+        t.sleepAt -= dt;
+        if (t.sleepAt <= 0 && this.state === 'idle' && this.idleT > 14) t.sleepy = true;
+      }
       if (t.jumpT > 0) {
         t.jumpT -= dt;
         if (t.jumpT <= 0 && !t.pop && !t.falling) {
           t.jump(-90);
-          t.say('happy', 0.5);
+          t.say('laugh', 0.6);
         }
       }
 
@@ -1520,7 +1534,7 @@ export class Game {
     const sel = this.selected;
     if (sel && sel[0] === r && sel[1] === c) return 'excited';
     if (this.hint && this.isHint(r, c)) return Math.floor(this.time * 2) % 2 ? 'excited' : 'idle';
-    if (t.blink > 0) return 'blink';
+    if (t.blink > 0) return t.wink ? 'wink' : 'blink';
     if (t.sleepy) return 'sleepy';
     return 'idle';
   }

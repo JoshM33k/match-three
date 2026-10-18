@@ -144,7 +144,7 @@ export class Title {
     this.monsters.forEach((m, i) => {
       const r = this.monsterRect(i);
       if (x >= r.x && x < r.x + r.size && y >= r.y - 10 && y < r.y + r.size) {
-        const moods = ['happy', 'surprised', 'excited', 'dizzy', 'squish'];
+        const moods = ['happy', 'surprised', 'excited', 'dizzy', 'squish', 'love', 'laugh', 'wink'];
         m.expr = moods[Math.floor(Math.random() * moods.length)];
         m.exprT = 0.7;
         m.hopV = -150;

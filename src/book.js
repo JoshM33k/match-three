@@ -11,7 +11,7 @@ const BIOS = [
   'A SHY LITTLE GHOST. FADES AWAY WHEN EMBARRASSED, WHICH IS OFTEN.',
   'FELL FROM THE SKY ONE NIGHT AND DECIDED TO STAY. WAVES AT EVERYONE.',
 ];
-const POKES = ['happy', 'surprised', 'excited', 'dizzy', 'squish', 'sad'];
+const POKES = ['happy', 'surprised', 'excited', 'dizzy', 'squish', 'sad', 'love', 'laugh', 'wink'];
 
 export class Book {
   constructor(app) {
