@@ -9,7 +9,7 @@ export class Title {
   constructor(app) {
     this.app = app;
     this.time = 0;
-    this.monsters = MONSTERS.map((_, i) => ({ type: i, hop: 0, hopV: 0, expr: null, exprT: 0, blinkT: Math.random() * 4, quirkT: 1 + Math.random() * 4, quirk: 0 }));
+    this.monsters = MONSTERS.slice(0, app.settings.level > 20 ? 7 : 6).map((_, i) => ({ type: i, hop: 0, hopV: 0, expr: null, exprT: 0, blinkT: Math.random() * 4, quirkT: 1 + Math.random() * 4, quirk: 0 }));
     this.layout();
   }
 
@@ -59,10 +59,10 @@ export class Title {
     const n = this.monsters.length;
     const size = 32;
     const gap = 2;
-    const total = n * size + (n - 1) * gap;
-    const x0 = Math.floor((this.app.vw - Math.min(total, this.app.vw - 4)) / 2);
-    const step = Math.min(size + gap, Math.floor((this.app.vw - 4) / n));
-    return { x: x0 + i * step, y: this.paradeY, size: Math.min(size, step) };
+    // monsters stay 32px (crisp 2x); a big crowd just overlaps a little
+    const step = Math.min(size + gap, Math.floor((this.app.vw - 4 - size) / Math.max(1, n - 1)));
+    const width = step * (n - 1) + size;
+    return { x: Math.floor((this.app.vw - width) / 2) + i * step, y: this.paradeY, size };
   }
 
   update(dt) {

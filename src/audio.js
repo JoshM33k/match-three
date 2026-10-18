@@ -59,6 +59,15 @@ const VOICES = [
     ],
     land: [{ wave: 'square', f: [[0, 900], [0.03, 700]], dur: 0.035, vol: 0.05, lp: 2500 }],
   },
+  // 6 Shroomy: bouncy mushroom — springy "boing!"
+  {
+    select: [{ wave: 'triangle', f: [[0, 300], [0.06, 620], [0.12, 420]], dur: 0.14, vol: 0.34 }],
+    match: [
+      { wave: 'triangle', f: [[0, 200], [0.08, 720], [0.16, 300], [0.3, 520]], dur: 0.32, vol: 0.38, vib: [14, 30] },
+    ],
+    sad: [{ wave: 'triangle', f: [[0, 420], [0.3, 200]], dur: 0.32, vol: 0.32, vib: [9, 25] }],
+    land: [{ wave: 'triangle', f: [[0, 260], [0.03, 420], [0.07, 180]], dur: 0.08, vol: 0.12 }],
+  },
 ];
 
 // Four-bar loops of eighth notes (MIDI numbers, 0 = rest).
@@ -156,6 +165,16 @@ const EXTRA = [
       [0, 1, 2, 3].map((i) => ({ wave: 'square', f: [[0, 1300 + i * 150], [0.04, 1600 + i * 150]], dur: 0.045, vol: 0.12, lp: 4500, at: i * 0.06 })),
     ],
     whee: [{ wave: 'square', f: [[0, 800], [0.3, 2200]], dur: 0.32, vol: 0.1, lp: 5000 }],
+  },
+  {
+    match: [
+      [{ wave: 'sine', f: [[0, 500], [0.12, 260]], dur: 0.14, vol: 0.38 }],
+      [
+        { wave: 'triangle', f: [[0, 240], [0.07, 640], [0.12, 300]], dur: 0.13, vol: 0.34 },
+        { wave: 'triangle', f: [[0, 300], [0.07, 760], [0.12, 360]], dur: 0.13, vol: 0.34, at: 0.14 },
+      ],
+    ],
+    whee: [{ wave: 'triangle', f: [[0, 250], [0.1, 700], [0.2, 400], [0.36, 1000]], dur: 0.38, vol: 0.28 }],
   },
 ];
 EXTRA.forEach((x, i) => {

@@ -29,9 +29,12 @@ const same = (a, b) => matchable(a) && matchable(b) && a.type === b.type;
 /**
  * Fill a new grid without any ready-made matches and with at least one move.
  * `voids` (a Set of key(r, c)) marks cells that are not part of the board.
+ * makeTile receives the monster type to create.
  */
 export function createGrid(rows, cols, numTypes, rng, makeTile, voids = null) {
   const T = (grid, r, c) => (grid[r] && grid[r][c] ? grid[r][c].type : -9);
+  // numTypes is a count (types 0..n-1) or an explicit list of monster types
+  const pick = () => (Array.isArray(numTypes) ? numTypes[Math.floor(rng() * numTypes.length)] : Math.floor(rng() * numTypes));
   for (let attempt = 0; attempt < 200; attempt++) {
     const grid = [];
     for (let r = 0; r < rows; r++) {
@@ -43,7 +46,7 @@ export function createGrid(rows, cols, numTypes, rng, makeTile, voids = null) {
         }
         let type;
         do {
-          type = Math.floor(rng() * numTypes);
+          type = pick();
         } while (
           (T(grid, r, c - 1) === type && T(grid, r, c - 2) === type) ||
           (T(grid, r - 1, c) === type && T(grid, r - 2, c) === type) ||

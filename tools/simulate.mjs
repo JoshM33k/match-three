@@ -8,7 +8,7 @@ import { getLevel, voidsOf, ROWS, COLS } from '../src/levels.js';
 
 const SPECIAL_BONUS = { lineH: 60, lineV: 60, bomb: 100, rainbow: 200, pal: 80 };
 
-function resolve(grid, rng, types, first, tally, goo, voids) {
+function resolve(grid, rng, species, first, tally, goo, voids) {
   let score = 0;
   let combo = 1;
   let pending = first;
@@ -40,7 +40,7 @@ function resolve(grid, rng, types, first, tally, goo, voids) {
         if (g.special === 'rainbow') t.type = -1;
       }
     }
-    applyGravity(grid, () => ({ type: Math.floor(rng() * types), special: null }), voids);
+    applyGravity(grid, () => ({ type: species[Math.floor(rng() * species.length)], special: null }), voids);
     combo++;
   }
   return score;
@@ -73,7 +73,7 @@ export function play(n, seed, skill = 0.75) {
   const lv = getLevel(n);
   const rng = makeRng(seed);
   const voids = voidsOf(lv.shape);
-  const grid = createGrid(ROWS, COLS, lv.types, rng, (type) => ({ type, special: null }), voids);
+  const grid = createGrid(ROWS, COLS, lv.species, rng, (type) => ({ type, special: null }), voids);
   let score = 0;
   const tally = {};
   const goo = new Set((lv.goo || []).map(([r, c]) => key(r, c)));
@@ -92,7 +92,7 @@ export function play(n, seed, skill = 0.75) {
       }
     } else m = moves[Math.floor(rng() * moves.length)];
     swapCells(grid, m.a, m.b);
-    score += resolve(grid, rng, lv.types, firstClear(grid, m.a, m.b), tally, goo, voids);
+    score += resolve(grid, rng, lv.species, firstClear(grid, m.a, m.b), tally, goo, voids);
   }
   const cleared = Object.values(tally).reduce((a, b) => a + b, 0);
   const collected = (!lv.boss || cleared >= lv.boss.hp) && goo.size === 0 && lv.collect.filter((g) => g.type >= 0).every((g) => (tally[g.type] || 0) >= g.count);

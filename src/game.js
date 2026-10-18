@@ -32,7 +32,7 @@ const WIN_WORDS = ['YUMMY!', 'DELICIOUS!', 'MONSTROUS!', 'RAWRSOME!'];
 const TIPS = ['SWIPE TO SWAP!', 'MATCH 4 FOR A BLASTER', 'L OR T MAKES A BOMB', 'MATCH 5 FOR A RAINBOW', 'SWAP TWO SPECIALS!', 'A SQUARE MAKES A PAL'];
 
 // How long each species' idle quirk lasts (seconds), by monster type.
-const QUIRK_TIME = [0.6, 0.9, 0.7, 0.4, 1.1, 0.6];
+const QUIRK_TIME = [0.6, 0.9, 0.7, 0.4, 1.1, 0.6, 0.7];
 
 // Shown once, the first time a player meets each thing.
 const NEW_THINGS = {
@@ -124,7 +124,7 @@ export class Game {
     this.moves = this.level.moves;
     this.goals = this.level.collect.map((g) => ({ ...g, left: g.count, shown: g.count, bump: 0 }));
     this.voids = voidsOf(this.level.shape);
-    this.grid = createGrid(ROWS, COLS, this.level.types, this.rng, (t) => new Tile(t), this.voids);
+    this.grid = createGrid(ROWS, COLS, this.level.species, this.rng, (t) => new Tile(t), this.voids);
     this.placeEggs(this.level.eggs || 0);
     this.goo = Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
     for (const [r, c] of this.level.goo || []) this.goo[r][c] = 1;
@@ -213,6 +213,11 @@ export class Game {
       if (findValidMoves(this.grid).length >= 3) return;
       for (const [r, c, t] of placed) this.grid[r][c] = t;
     }
+  }
+
+  randomType() {
+    const sp = this.level.species;
+    return sp[Math.floor(this.rng() * sp.length)];
   }
 
   eachTile(fn) {
@@ -817,7 +822,7 @@ export class Game {
       this.introduce(g.special === 'lineH' || g.special === 'lineV' ? 'line' : g.special, t);
     }
     this.pending = null;
-    const moves = applyGravity(grid, () => new Tile(Math.floor(this.rng() * this.level.types)), this.voids);
+    const moves = applyGravity(grid, () => new Tile(this.randomType()), this.voids);
     const dropped = moves.filter((m) => m.spawned);
     if (dropped.length >= 6 && this.audio.throttle('whee', 1.5)) {
       const t = dropped[Math.floor(Math.random() * dropped.length)].tile;
@@ -839,7 +844,7 @@ export class Game {
     if (!shuffleGrid(this.grid, this.rng)) {
       // practically impossible, but keep the game going: reroll every monster
       this.eachTile((t) => {
-        t.type = Math.floor(this.rng() * this.level.types);
+        t.type = this.randomType();
         t.special = null;
       });
       if (!shuffleGrid(this.grid, this.rng)) {
@@ -1516,7 +1521,7 @@ export class Game {
     this.audio.crack(t.hp);
     if (t.hp > 0) return;
     // Hatch! The egg becomes a brand new baby monster.
-    t.type = Math.floor(this.rng() * this.level.types);
+    t.type = this.randomType();
     t.special = null;
     t.say('excited', 1.2);
     t.squash = -0.4;
@@ -1554,6 +1559,11 @@ export class Game {
         const side = i % 2 ? 1 : -1;
         this.particles.push({ x: x + side * 6, y: y - 8, vx: side * (4 + Math.random() * 4), vy: -14 - Math.random() * 8, life: -i * 0.12, max: 0.7, color: '#f4ecff', grav: -6, kind: 'puff' });
       }
+    } else if (t.type === 6) {
+      // Shroomy puffs a few spores
+      for (let i = 0; i < 4; i++) {
+        this.particles.push({ x: x + (Math.random() - 0.5) * 10, y: y - 6, vx: (Math.random() - 0.5) * 12, vy: -8 - Math.random() * 8, life: -i * 0.08, max: 0.8, color: '#fff1d6', size: 1, grav: -4, kind: 'sq' });
+      }
     } else if (t.type === 5) {
       this.particles.push({ x: x + (t.quirkSide === 1 ? -7 : 7), y: y - 5, vx: 0, vy: -6, life: 0, max: 0.5, color: '#fff6b0', grav: 0, kind: 'spark' });
     }
@@ -1566,6 +1576,7 @@ export class Game {
       case 0:
       case 2:
       case 4:
+      case 6:
         return fast ? 'q1' : 'q2';
       case 3:
         return Math.floor(this.time * 14) % 3 ? 'q' + t.quirkSide : 'n';
@@ -1647,7 +1658,8 @@ export class Game {
     if (this.cheerT > 0) this.cheerT -= 1 / 60;
     let mood = this.cheerT > 0 ? this.cheerMood : null;
     if (this.state === 'done') mood = this.overlay && this.overlay.kind === 'lose' ? 'sad' : 'happy';
-    const types = [(this.level.n + 1) % 6, (this.level.n + 4) % 6];
+    const sp = this.level.species;
+    const types = [sp[(this.level.n + 1) % sp.length], sp[(this.level.n + 4) % sp.length]];
     types.forEach((type, i) => {
       const cx = i === 0 ? Math.floor(spare / 2) + 2 : this.app.vw - Math.floor(spare / 2) - 2;
       const ground = this.boardY + Math.floor(this.bh * 0.75);
@@ -2355,7 +2367,7 @@ export class Game {
       else drawText(ctx, 'BEST ' + o.best, cx, y + 62, { color: '#c9b6ff', align: 'center' });
       // a little conga line of happy monsters
       for (let i = 0; i < 5; i++) {
-        const type = (this.level.n + i) % 6;
+        const type = this.level.species[(this.level.n + i) % this.level.species.length];
         const hop = Math.round(Math.min(0, Math.sin(this.time * 7 - i * 0.9)) * 5);
         ctx.drawImage(getSprite(type, i % 2 ? 'happy' : 'excited'), cx - 48 + i * 20, y + 74 + hop);
       }
@@ -2382,7 +2394,7 @@ export class Game {
       const progress = parts.reduce((a, b) => a + b, 0) / parts.length;
       const close = progress >= 0.8;
       drawText(ctx, close ? 'SO CLOSE!' : 'OUT OF MOVES!', cx, y + 7, { color: '#ff8fa8', scale: 2, align: 'center', outline: '#140726' });
-      const type = this.level.n % 6;
+      const type = this.level.species[this.level.n % this.level.species.length];
       const s = getSprite(type, Math.floor(this.time * 1.5) % 4 === 3 ? 'blink' : 'sad');
       ctx.drawImage(s, cx - 12, y + 21, 24, 24);
       if (Math.floor(this.time * 2) % 2) {

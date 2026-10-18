@@ -56,7 +56,7 @@ export const HATS = [
 ];
 
 // Row (from the top of a 16px sprite) where each species' head starts.
-const HEAD = [2, 3, 4, 4, 2, 2];
+const HEAD = [2, 3, 4, 4, 2, 2, 2];
 
 export function hatById(id) {
   return HATS.find((h) => h.id === id) || HATS[0];

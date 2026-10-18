@@ -23,6 +23,15 @@ export function voidsOf(shape) {
   return out;
 }
 
+/** Which monster types appear on a level's board. */
+export function speciesFor(n, types = 6) {
+  const all = [...Array(types).keys()];
+  if (n <= 20) return all;
+  const world = Math.floor((n - 1) / 10); // 2 = Starry Sea, ...
+  const out = [3, 1, 4, 0, 5, 2][(world - 2) % 6];
+  return all.map((t) => (t === out ? 6 : t));
+}
+
 /** A symmetric blob of goo cells in the middle of the board. */
 function makeGoo(n, rng) {
   const cells = new Set();
@@ -40,6 +49,8 @@ function makeGoo(n, rng) {
 export function getLevel(n) {
   const rng = makeRng(n * 7919);
   const types = n <= 3 ? 5 : 6;
+  // From the third world on, one familiar monster sits out for Shroomy (6).
+  const species = speciesFor(n, types);
   const moves = Math.max(18, 22 - Math.floor(n / 4));
   // Targets come from simulated play (tools/simulate.mjs): a typical score
   // per move on a six-monster board, times a difficulty factor that ramps
@@ -66,7 +77,7 @@ export function getLevel(n) {
   }
   if (!boss && !goo && n >= 2 && n % 3 !== 1 && collect.length < 2) {
     const kinds = n % 3 === 0 && n >= 3 && !eggs ? 2 : 1;
-    const pool = [...Array(types).keys()];
+    const pool = [...species];
     for (let i = 0; i < kinds; i++) {
       const type = pool.splice(Math.floor(rng() * pool.length), 1)[0];
       collect.push({ type, count: Math.min(24, 8 + Math.round(n * 0.7)) - (kinds - 1) * 3 });
@@ -77,6 +88,7 @@ export function getLevel(n) {
   return {
     n,
     types,
+    species,
     moves,
     target: stars[0],
     stars,
@@ -91,7 +103,7 @@ export function getLevel(n) {
 
 /** Zen mode: endless, relaxing play with no moves limit or goals. */
 export function getZenLevel() {
-  return { n: 0, zen: true, types: 6, moves: 0, target: 0, stars: [0, 0, 0], collect: [], eggs: 0, boss: null, seed: Date.now() };
+  return { n: 0, zen: true, types: 6, species: [0, 1, 2, 3, 4, 5], moves: 0, target: 0, stars: [0, 0, 0], collect: [], eggs: 0, boss: null, seed: Date.now() };
 }
 
 export function todayKey(d = new Date()) {
@@ -108,5 +120,5 @@ export function getDailyLevel(day = todayKey()) {
     { name: 'MONSTER RUSH', types: 5, moves: 15, eggs: 0 },
   ];
   const k = kinds[h % kinds.length];
-  return { n: 0, daily: true, day, title: k.name, types: k.types, moves: k.moves, target: 0, stars: [0, 0, 0], collect: [], eggs: k.eggs, boss: null, goo: null, seed: h };
+  return { n: 0, daily: true, day, title: k.name, types: k.types, species: [...Array(k.types).keys()], moves: k.moves, target: 0, stars: [0, 0, 0], collect: [], eggs: k.eggs, boss: null, goo: null, seed: h };
 }

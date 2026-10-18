@@ -189,6 +189,33 @@ export const MONSTERS = [
     // waves an arm
     quirks: { q1: [[0, 5, 2, 6, 0, -1]], q2: [[13, 5, 15, 6, 0, -1]] },
   },
+  {
+    name: 'Shroomy',
+    colors: { o: '#5a1420', s: '#c02a3a', b: '#ff4a5a', l: '#ff9aa0', a: '#fff1d6', as: '#e6cfa6', k: '#4a2010', p: '#ff8fa0' },
+    half: [
+      '........',
+      '....####',
+      '..######',
+      '.#######',
+      '.#######',
+      '.#######',
+      '..######',
+      '...aaaaa',
+      '...aaaaa',
+      '...aaaaa',
+      '...aaaaa',
+      '...aaaaa',
+      '...aaaaa',
+      '....aaaa',
+      '........',
+      '........',
+    ],
+    face: { ex: 5, ey: 8, my: 11 },
+    spots: [[3, 3, '#ffffff'], [4, 3, '#ffffff'], [4, 4, '#ffffff'], [11, 2, '#ffffff'], [12, 2, '#ffffff'], [12, 3, '#ffffff'], [7, 4, '#ffffff'], [8, 4, '#ffffff'], [7, 5, '#ffffff']],
+    shine: [[6, 1]],
+    // the cap tilts
+    quirks: { q1: [[0, 0, 15, 6, -1, 0]], q2: [[0, 0, 15, 6, 1, 0]] },
+  },
 ];
 
 // The rainbow special is drawn with a round body whose colours cycle.
@@ -459,7 +486,13 @@ export function buildPixels(def, expr = 'idle', lx = 0, ly = 0, variant = 'n', f
   }
 
   if (def.egg) drawEgg(def, variant, lx, set);
-  else drawFace(def, expr, lx, ly, set);
+  else {
+    if (def.spots) {
+      const dx = variant === 'q1' ? -1 : variant === 'q2' ? 1 : 0;
+      for (const [x, y, c] of def.spots) if (solid(x + dx, y)) set(x + dx, y, c);
+    }
+    drawFace(def, expr, lx, ly, set);
+  }
   return px;
 }
 

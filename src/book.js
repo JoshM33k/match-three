@@ -11,6 +11,7 @@ const BIOS = [
   'A FLUFFBALL WHO NEVER BRUSHES. ITS TINY RAWR IS TERRIFYING (TO ANTS).',
   'A SHY LITTLE GHOST. FADES AWAY WHEN EMBARRASSED, WHICH IS OFTEN.',
   'FELL FROM THE SKY ONE NIGHT AND DECIDED TO STAY. WAVES AT EVERYONE.',
+  'A BOUNCY MUSHROOM FROM THE STARRY SEA SHORE. SNEEZES SPORES WHEN HAPPY.',
 ];
 const POKES = ['happy', 'surprised', 'excited', 'dizzy', 'squish', 'sad', 'love', 'laugh', 'wink'];
 
@@ -47,9 +48,15 @@ export class Book {
     this.w = Math.min(vw - 8, 230);
     this.x0 = Math.floor((vw - this.w) / 2);
     this.cardW = Math.floor((this.w - 4) / 3);
-    this.cardH = 52;
-    const content = this.cardH * 2 + 4 + 6 + 56 + 6 + 40;
+    this.cardH = 44;
+    this.rows = Math.ceil(MONSTERS.length / 3);
+    const content = (this.cardH + 4) * this.rows + 6 + 46 + 6 + 40;
     this.y0 = Math.max(safeTop + 54, Math.floor((vh - content) / 2));
+  }
+
+  /** Shroomy only appears from the Starry Sea onwards. */
+  met(type) {
+    return type < 6 || this.app.settings.level > 20 || (this.app.settings.stats && this.app.settings.stats.popped[type] > 0);
   }
 
   cardRect(i) {
@@ -96,20 +103,34 @@ export class Book {
       const r = this.cardRect(i);
       const m = MONSTERS[c.type];
       const sel = i === this.selected;
+      if (!this.met(c.type)) {
+        panel(ctx, r.x, r.y, r.w, r.h, '#241542', sel ? '#ffffff' : '#140726', 3);
+        ctx.globalAlpha = 0.2;
+        ctx.drawImage(getSprite(c.type, 'idle'), r.x + Math.floor(r.w / 2) - 12, r.y + 3, 24, 24);
+        ctx.globalAlpha = 1;
+        drawText(ctx, '???', r.x + Math.floor(r.w / 2), r.y + 30, { color: '#8a7aa8', align: 'center' });
+        return;
+      }
       panel(ctx, r.x, r.y, r.w, r.h, sel ? m.colors.s : '#2d1856', sel ? '#ffffff' : '#140726', 3);
-      roundRect(ctx, r.x + 2, r.y + 2, r.w - 4, 34, 2, sel ? m.colors.l : '#3d2a7f');
+      roundRect(ctx, r.x + 2, r.y + 2, r.w - 4, 26, 2, sel ? m.colors.l : '#3d2a7f');
       const blink = Math.floor(this.time * 0.9 + i * 0.37) % 5 === 0 && (this.time * 0.9 + i * 0.37) % 1 < 0.15;
       const expr = c.exprT > 0 ? c.expr : blink ? 'blink' : 'idle';
       const quirk = m.quirks && Math.floor(this.time * 0.5 + i) % 4 === 0 ? (Math.floor(this.time * 8) % 2 ? 'q1' : 'q2') : 'n';
-      ctx.drawImage(getSprite(c.type, expr, 0, 0, quirk), r.x + Math.floor(r.w / 2) - 16, r.y + 3 + Math.round(c.hop), 32, 32);
-      drawText(ctx, m.name, r.x + Math.floor(r.w / 2), r.y + 38, { color: '#ffffff', align: 'center', outline: '#140726' });
+      ctx.drawImage(getSprite(c.type, expr, 0, 0, quirk), r.x + Math.floor(r.w / 2) - 12, r.y + 3 + Math.round(c.hop), 24, 24);
+      drawText(ctx, m.name, r.x + Math.floor(r.w / 2), r.y + 30, { color: '#ffffff', align: 'center', outline: '#140726' });
       const n = stats.popped[c.type] || 0;
-      drawText(ctx, String(n), r.x + Math.floor(r.w / 2), r.y + 45, { color: n ? '#ffe04a' : '#8a7aa8', align: 'center' });
+      drawText(ctx, String(n), r.x + Math.floor(r.w / 2), r.y + 37, { color: n ? '#ffe04a' : '#8a7aa8', align: 'center' });
     });
 
     // bio of the selected monster
-    const by = this.y0 + this.cardH * 2 + 10;
+    const by = this.y0 + (this.cardH + 4) * this.rows + 2;
     const m = MONSTERS[this.selected];
+    if (!this.met(this.selected)) {
+      panel(ctx, this.x0, by, this.w, 40, '#2d1856', '#140726', 3);
+      drawText(ctx, '???', this.x0 + 6, by + 5, { color: '#8a7aa8', scale: 2, outline: '#140726' });
+      drawText(ctx, 'A NEW FRIEND WAITS IN THE STARRY SEA...', this.x0 + 6, by + 20, { color: '#c9b6ff' });
+      return;
+    }
     panel(ctx, this.x0, by, this.w, 40, '#2d1856', '#140726', 3);
     drawText(ctx, m.name, this.x0 + 6, by + 5, { color: m.colors.b, scale: 2, outline: '#140726' });
     drawText(ctx, 'POPPED ' + (stats.popped[this.selected] || 0), this.x0 + this.w - 6, by + 8, { color: '#ffe04a', align: 'right' });
@@ -245,6 +266,7 @@ export class Book {
       const r = this.cardRect(i);
       if (x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h) {
         this.selected = i;
+        if (!this.met(c.type)) return;
         c.expr = POKES[Math.floor(Math.random() * POKES.length)];
         c.exprT = 0.8;
         c.hopV = -140;
