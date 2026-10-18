@@ -387,7 +387,7 @@ export class Game {
       return;
     }
     const t = this.grid[cell[0]][cell[1]];
-    if (t.type === EGG_TYPE) {
+    if (t.type === EGG_TYPE || t.stuck) {
       this.wobbleEgg(t);
       this.selected = null;
       return;
@@ -466,9 +466,9 @@ export class Game {
     this.selected = null;
     this.drag = null;
     this.hint = null;
-    if (ta.type === EGG_TYPE || tb.type === EGG_TYPE) {
+    if (ta.type === EGG_TYPE || tb.type === EGG_TYPE || ta.stuck || tb.stuck) {
       for (const t of [ta, tb]) {
-        if (t.type === EGG_TYPE) this.wobbleEgg(t);
+        if (t.type === EGG_TYPE || t.stuck) this.wobbleEgg(t);
         else t.say('sad', 0.6);
       }
       return;
@@ -552,6 +552,12 @@ export class Game {
     if (this.moves <= 0 && !this.zen) {
       this.showLose();
       return;
+    }
+    if (this.moveDone) {
+      this.eachTile((t) => {
+        if (t.stuck > 0) t.stuck--;
+      });
+      if (!this.boss || this.boss.hp <= 0) this.moveDone = false;
     }
     if (this.boss && this.boss.hp > 0 && this.moveDone) {
       this.moveDone = false;
@@ -1292,23 +1298,37 @@ export class Game {
   }
 
   /** The boss roars and lays eggs onto the board. */
+  /** Each king has its own trick. */
+  bossKind() {
+    return { 0: 'slime', 2: 'scramble', 5: 'steal' }[this.boss.type] || 'eggs';
+  }
+
   bossAttack() {
     const b = this.boss;
-    b.attackIn = this.level.n >= 20 ? 3 : 4;
+    b.attackIn = this.bossKind() === 'steal' ? 5 : this.level.n >= 20 ? 3 : 4;
     b.roarT = 1.1;
     this.audio.monster(b.type, 'match', 0.55);
     this.audio.boom();
     this.shakeT = 0.35;
-    this.bigText(b.name.split(' ')[1] + ' ROARS!', '#ff8fa8');
+    const kind = this.bossKind();
+    const who = b.name.split(' ')[1];
+    this.bigText({ eggs: who + ' ROARS!', slime: 'SLIME TIME!', scramble: who + ' STARES!', steal: 'MOVE STOLEN!' }[kind], '#ff8fa8');
     const options = [];
     this.eachTile((t, r, c) => {
-      if (t.type >= 0 && !t.special) options.push([r, c]);
+      if (t.type >= 0 && !t.special && !t.stuck) options.push([r, c]);
     });
-    const count = Math.min(options.length, this.level.n >= 15 ? 3 : 2);
-    this.attackEggs = [];
-    for (let i = 0; i < count; i++) {
-      const [r, c] = options.splice(Math.floor(this.rng() * options.length), 1)[0];
-      this.attackEggs.push([r, c]);
+    const pick = (n) => {
+      const out = [];
+      for (let i = 0; i < Math.min(n, options.length); i++) out.push(options.splice(Math.floor(this.rng() * options.length), 1)[0]);
+      return out;
+    };
+    this.attack = { kind, cells: [] };
+    if (kind === 'eggs') this.attack.cells = pick(this.level.n >= 15 ? 3 : 2);
+    else if (kind === 'slime') this.attack.cells = pick(this.level.n >= 15 ? 5 : 4);
+    else if (kind === 'scramble') {
+      const r0 = 1 + Math.floor(this.rng() * (ROWS - 2));
+      const c0 = 1 + Math.floor(this.rng() * (COLS - 2));
+      for (let r = r0 - 1; r <= r0 + 1; r++) for (let c = c0 - 1; c <= c0 + 1; c++) this.attack.cells.push([r, c]);
     }
     this.attackT = 0;
     this.state = 'boss';
@@ -1317,35 +1337,92 @@ export class Game {
   updateBossAttack(dt) {
     const before = this.attackT;
     this.attackT += dt;
+    const a = this.attack;
     if (before < 0.75 && this.attackT >= 0.75) {
-      for (const [r, c] of this.attackEggs) {
-        const egg = new Tile(EGG_TYPE);
-        egg.hp = 2;
-        egg.x = c;
-        egg.y = r;
-        egg.squash = 0.35;
-        this.grid[r][c] = egg;
-        this.burst(c, r, '#fff4dc', 6);
-        this.effects.push({ kind: 'ring', r, c, t: 0, color: '#fff4dc' });
+      if (a.kind === 'eggs') {
+        for (const [r, c] of a.cells) {
+          const egg = new Tile(EGG_TYPE);
+          egg.hp = 2;
+          egg.x = c;
+          egg.y = r;
+          egg.squash = 0.35;
+          this.grid[r][c] = egg;
+          this.burst(c, r, '#fff4dc', 6);
+          this.effects.push({ kind: 'ring', r, c, t: 0, color: '#fff4dc' });
+        }
+        this.audio.crack(1);
+      } else if (a.kind === 'slime') {
+        for (const [r, c] of a.cells) {
+          const t = this.grid[r][c];
+          t.stuck = 3;
+          t.say('sad', 0.8);
+          t.squash = 0.3;
+          this.burst(c, r, '#ff6fb4', 6);
+        }
+        this.audio.monster(0, 'match', 0.7);
+      } else if (a.kind === 'scramble') {
+        const tiles = a.cells.map(([r, c]) => this.grid[r][c]);
+        for (let i = tiles.length - 1; i > 0; i--) {
+          const j = Math.floor(this.rng() * (i + 1));
+          [tiles[i], tiles[j]] = [tiles[j], tiles[i]];
+        }
+        a.cells.forEach(([r, c], i) => {
+          this.grid[r][c] = tiles[i];
+          tiles[i].tweenTo(c, r, 0.3, 4);
+          tiles[i].say('dizzy', 0.9);
+        });
+        this.audio.shuffle();
+      } else if (a.kind === 'steal') {
+        this.moves = Math.max(1, this.moves - 1);
+        this.audio.zap();
+        this.app.buzz(25);
       }
-      this.audio.crack(1);
     }
-    if (this.attackT >= 1.1) {
-      this.attackEggs = null;
+    if (this.attackT >= 1.1 && !this.anyMoving()) {
+      this.attack = null;
       this.afterSettle();
     }
   }
 
   drawBossAttack(ctx) {
-    if (this.state !== 'boss' || !this.attackEggs || this.attackT >= 0.75) return;
+    const a = this.attack;
+    if (this.state !== 'boss' || !a || this.attackT >= 0.75) return;
     const k = ease(this.attackT / 0.75);
     const p = this.bossCenter();
-    for (const [r, c] of this.attackEggs) {
-      const tx = this.boardX + (c + 0.5) * this.cell;
-      const ty = this.boardY + (r + 0.5) * this.cell;
+    const fly = (tx, ty, draw) => {
       const x = p.x + (tx - p.x) * k;
       const y = p.y + (ty - p.y) * k - Math.sin(k * Math.PI) * 40;
-      ctx.drawImage(getSprite(EGG_TYPE, 'idle'), Math.round(x - 8), Math.round(y - 8));
+      draw(Math.round(x), Math.round(y));
+    };
+    if (a.kind === 'steal') {
+      // a spark zips from the boss to the moves counter
+      const tx = this.boardX + this.bw - 15;
+      const ty = this.hudY + 14;
+      fly(tx, ty, (x, y) => {
+        ctx.fillStyle = '#ffe04a';
+        ctx.fillRect(x - 2, y - 2, 5, 5);
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(x - 1, y - 1, 3, 3);
+      });
+      return;
+    }
+    if (a.kind === 'scramble') {
+      const [r, c] = a.cells[4];
+      const x = this.boardX + (c + 0.5) * this.cell;
+      const y = this.boardY + (r + 0.5) * this.cell;
+      pixelCircle(ctx, x, y, (1 - k) * 30 + this.cell * 1.5, '#9fe8ff', 1);
+      return;
+    }
+    for (const [r, c] of a.cells) {
+      fly(this.boardX + (c + 0.5) * this.cell, this.boardY + (r + 0.5) * this.cell, (x, y) => {
+        if (a.kind === 'eggs') ctx.drawImage(getSprite(EGG_TYPE, 'idle'), x - 8, y - 8);
+        else {
+          ctx.fillStyle = '#c23a86';
+          ctx.fillRect(x - 3, y - 2, 6, 5);
+          ctx.fillStyle = '#ff6fb4';
+          ctx.fillRect(x - 2, y - 2, 4, 3);
+        }
+      });
     }
   }
 
@@ -1683,6 +1760,15 @@ export class Game {
     if (ghost) dy += Math.round(Math.sin(this.time * 2.2 + t.phase) * 1.4) - 1;
     if (ghost && t.quirk > 0 && !t.special) ctx.globalAlpha = 0.55;
     ctx.drawImage(spr, dx, dy, w, h);
+    if (t.stuck > 0 && !t.pop) {
+      // dripping slime coat
+      ctx.fillStyle = 'rgba(255,111,180,0.55)';
+      ctx.fillRect(dx + 1, dy + 2, w - 2, Math.round(h * 0.45));
+      ctx.fillStyle = '#c23a86';
+      const drip = Math.floor(this.time * 2 + t.phase) % 3;
+      ctx.fillRect(dx + 3, dy + 2 + Math.round(h * 0.45), 2, 2 + drip);
+      ctx.fillRect(dx + w - 6, dy + 2 + Math.round(h * 0.45), 2, 1 + ((drip + 1) % 3));
+    }
     if (this.app.settings.hat && t.type >= 0) drawHat(ctx, this.app.settings.hat, t.type, dx, dy, w, h);
     ctx.globalAlpha = 1;
   }
@@ -2092,6 +2178,10 @@ export class Game {
       drawText(ctx, 'LEVEL ' + this.level.n, cx + off, y + 7, { color: '#ffe04a', scale: 3, align: 'center', outline: '#140726' });
       const goalText = this.boss ? 'DEFEAT ' + this.boss.name + ' IN ' + this.level.moves + ' MOVES' : 'SCORE ' + this.level.target + ' IN ' + this.level.moves + ' MOVES';
       if (this.boss) drawText(ctx, 'BOSS BATTLE!', cx + off, y - 9, { color: '#ff8fa8', scale: 2, align: 'center', outline: '#140726' });
+      if (this.boss) {
+        const what = { eggs: 'WATCH OUT: IT LAYS EGGS!', slime: 'WATCH OUT: IT SLIMES MONSTERS!', scramble: 'WATCH OUT: IT SCRAMBLES THINGS!', steal: 'WATCH OUT: IT STEALS MOVES!' }[this.bossKind()];
+        drawText(ctx, what, cx + off, y + 40, { color: '#ff8fa8', align: 'center' });
+      }
       drawText(ctx, goalText, cx + off, y + 30, {
         color: '#ffffff',
         align: 'center',
