@@ -462,8 +462,14 @@ export class Sound {
     this.music.flavor = F[world % F.length];
   }
 
+  /** Speed the music up a little when moves are running out. */
+  setTension(on) {
+    this.music.tension = on;
+  }
+
   /** Switch tune; the change happens at the start of the next bar. */
   setSong(name) {
+    if (name === 'title') this.music.tension = false;
     if (!SONGS[name] || this.music.want === name) return;
     this.music.want = name;
   }
@@ -479,7 +485,7 @@ export class Sound {
       }
       const song = SONGS[this.music.song || 'title'];
       const fl = (this.music.song === 'game' && this.music.flavor) || { transpose: 0, bpm: 1 };
-      const stepDur = 60 / (song.bpm * fl.bpm) / 2;
+      const stepDur = 60 / (song.bpm * fl.bpm * (this.music.tension ? 1.14 : 1)) / 2;
       const s = this.music.step % 32;
       const loop = Math.floor(this.music.step / 32);
       const when = this.music.next - ctx.currentTime;

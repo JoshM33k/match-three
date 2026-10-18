@@ -149,6 +149,8 @@ export class Game {
     this.zings = [];
     this.moveDone = false;
     this.audio.setFlavor(worldFor(this.level.n || 1));
+    this.tense = false;
+    this.audio.setTension(false);
     this.audio.setSong(this.boss ? 'boss' : 'game');
     this.layout();
 
@@ -1105,6 +1107,7 @@ export class Game {
 
     this.updateEffects(dt);
     this.updateBoss(dt);
+    this.updateTension(dt);
     this.shownScore += Math.ceil((this.score - this.shownScore) * Math.min(1, dt * 8));
     if (this.shownScore > this.score) this.shownScore = this.score;
     if (this.zen && this.score >= this.milestone && this.state !== 'pop') {
@@ -1121,6 +1124,23 @@ export class Game {
       this.tipT = 0;
       this.tip = this.level.n === 1 && this.tip === 0 ? 1 : 1 + (this.tip % (TIPS.length - 1));
     }
+  }
+
+  /** Last few moves: faster music and visibly nervous monsters. */
+  updateTension(dt) {
+    const tense = !this.zen && !this.bonus && this.state !== 'done' && this.moves <= 3 && this.moves > 0;
+    if (tense !== this.tense) {
+      this.tense = tense;
+      this.audio.setTension(tense);
+    }
+    if (!tense || this.state !== 'idle' || Math.random() > dt * 1.5) return;
+    const r = Math.floor(Math.random() * ROWS);
+    const c = Math.floor(Math.random() * COLS);
+    const t = this.grid[r][c];
+    if (!t || t.type < 0 || t.exprT > 0) return;
+    t.say('surprised', 0.5);
+    const { x, y } = this.tileScreen(t);
+    this.particles.push({ x: x + 6, y: y - 6, vx: 4, vy: 6, life: 0, max: 0.6, color: '#9fe3ff', size: 2, grav: 60, kind: 'sq' });
   }
 
   anyMoving() {
@@ -1303,6 +1323,7 @@ export class Game {
         z.done = true;
         b.shown = Math.max(0, b.shown - z.dmg);
         b.hitT = 0.18;
+        if (this.audio.throttle('bossouch', 1.2) && Math.random() < 0.5) this.audio.monster(b.type, 'sad', 0.6);
         if (this.audio.throttle('bosshit', 0.06)) this.audio.pop(0.7 + Math.random() * 0.2);
         const p = this.bossCenter();
         for (let i = 0; i < 2; i++) {
