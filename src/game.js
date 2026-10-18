@@ -17,6 +17,7 @@ import { getSprite, monsterColor, monsterLight, RAINBOW_COLORS, RAINBOW_FRAMES, 
 import { drawText, panel, roundRect, icon, iconOutlined, Button, pixelLine, pixelCircle, textWidth, wrapText, pattern, HAND } from './pixel.js';
 import { getLevel, getZenLevel, getDailyLevel, ROWS, COLS } from './levels.js';
 import { WORLDS, worldFor } from './background.js';
+import { drawHat } from './hats.js';
 
 const POP_GROW = 0.1;
 const POP_TIME = 0.3;
@@ -1682,6 +1683,7 @@ export class Game {
     if (ghost) dy += Math.round(Math.sin(this.time * 2.2 + t.phase) * 1.4) - 1;
     if (ghost && t.quirk > 0 && !t.special) ctx.globalAlpha = 0.55;
     ctx.drawImage(spr, dx, dy, w, h);
+    if (this.app.settings.hat && t.type >= 0) drawHat(ctx, this.app.settings.hat, t.type, dx, dy, w, h);
     ctx.globalAlpha = 1;
   }
 

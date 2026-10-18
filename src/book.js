@@ -2,6 +2,7 @@
 import { getSprite, MONSTERS } from './sprites.js';
 import { drawText, Button, panel, roundRect, wrapText, icon } from './pixel.js';
 import { STICKERS } from './stickers.js';
+import { HATS, drawHat, hatUnlocked } from './hats.js';
 
 const BIOS = [
   'A SQUISHY SLIME DROP. LOVES PUDDLES AND HUGS, AND GOES BLOOP WHEN HAPPY.',
@@ -33,7 +34,7 @@ export class Book {
         label,
         x,
         y: tabY,
-        w: 70,
+        w: 54,
         h: 16,
         color: this.tab === tab ? '#ffa040' : '#5e4d80',
         shade: this.tab === tab ? '#c06a20' : '#3a2a58',
@@ -42,7 +43,7 @@ export class Book {
           this.layout();
         },
       });
-    this.tabs = [mk('MONSTERS', 'monsters', Math.floor(vw / 2) - 72), mk('STICKERS', 'stickers', Math.floor(vw / 2) + 2)];
+    this.tabs = [mk('MONSTERS', 'monsters', Math.floor(vw / 2) - 83), mk('STICKERS', 'stickers', Math.floor(vw / 2) - 27), mk('HATS', 'hats', Math.floor(vw / 2) + 29)];
     this.w = Math.min(vw - 8, 230);
     this.x0 = Math.floor((vw - this.w) / 2);
     this.cardW = Math.floor((this.w - 4) / 3);
@@ -84,6 +85,10 @@ export class Book {
     for (const t of this.tabs) t.draw(ctx, this.time);
     if (this.tab === 'stickers') {
       this.renderStickers(ctx);
+      return;
+    }
+    if (this.tab === 'hats') {
+      this.renderHats(ctx);
       return;
     }
 
@@ -141,6 +146,37 @@ export class Book {
     return { x: this.x0 + (i % cols) * (size + 3), y: this.y0 + Math.floor(i / cols) * 34, w: size, h: 31 };
   }
 
+  hatRect(i) {
+    const size = Math.floor((this.w - 6) / 3);
+    return { x: this.x0 + (i % 3) * (size + 3), y: this.y0 + Math.floor(i / 3) * 46, w: size, h: 43 };
+  }
+
+  renderHats(ctx) {
+    const s = this.app.settings;
+    const current = s.hat || 'none';
+    HATS.forEach((hat, i) => {
+      const r = this.hatRect(i);
+      const open = hatUnlocked(hat, s);
+      const sel = hat.id === current;
+      panel(ctx, r.x, r.y, r.w, r.h, open ? '#3d2a7f' : '#241542', sel ? '#ffe04a' : '#140726', 3);
+      const type = (i + Math.floor(this.time / 2)) % 6;
+      const mx = r.x + Math.floor(r.w / 2) - 12;
+      const my = r.y + 10;
+      if (!open) ctx.globalAlpha = 0.25;
+      ctx.drawImage(getSprite(type, sel ? 'happy' : 'idle'), mx, my, 24, 24);
+      drawHat(ctx, hat.id, type, mx, my, 24, 24);
+      ctx.globalAlpha = 1;
+      if (!open) icon(ctx, 'lock', r.x + Math.floor(r.w / 2) - 1, r.y + 20, '#c9b6ff');
+      drawText(ctx, hat.name, r.x + Math.floor(r.w / 2), r.y + 35, { color: open ? '#ffffff' : '#8a7aa8', align: 'center' });
+    });
+    const by = this.y0 + Math.ceil(HATS.length / 3) * 46 + 2;
+    const hat = HATS[this.hatSel || 0];
+    const open = hatUnlocked(hat, s);
+    panel(ctx, this.x0, by, this.w, 26, '#2d1856', '#140726', 3);
+    drawText(ctx, hat.name, this.x0 + 6, by + 5, { color: '#ffe04a', outline: '#140726' });
+    drawText(ctx, open ? (hat.id === (s.hat || 'none') ? 'WEARING IT!' : 'TAP TO WEAR') : 'UNLOCK: ' + hat.need, this.x0 + 6, by + 15, { color: open ? '#ffffff' : '#c9b6ff' });
+  }
+
   renderStickers(ctx) {
     const got = this.app.settings.stickers || {};
     STICKERS.forEach((st, i) => {
@@ -180,6 +216,20 @@ export class Book {
         t.pressed = true;
         return;
       }
+    }
+    if (this.tab === 'hats') {
+      HATS.forEach((hat, i) => {
+        const r = this.hatRect(i);
+        if (x >= r.x && y >= r.y && x < r.x + r.w && y < r.y + r.h) {
+          this.hatSel = i;
+          if (hatUnlocked(hat, this.app.settings)) {
+            this.app.settings.hat = hat.id;
+            this.app.persist();
+            this.app.audio.monster(i % 6, 'select');
+          } else this.app.audio.monster(i % 6, 'sad');
+        }
+      });
+      return;
     }
     if (this.tab === 'stickers') {
       STICKERS.forEach((st, i) => {

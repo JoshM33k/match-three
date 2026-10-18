@@ -2,6 +2,7 @@
 // and a monster bouncing on the level you're up to.
 import { getSprite, MONSTERS } from './sprites.js';
 import { WORLDS, worldFor } from './background.js';
+import { drawHat } from './hats.js';
 import { drawText, Button, icon, iconOutlined, fillCircle, panel, pattern } from './pixel.js';
 
 const SPACING = 38;
@@ -146,6 +147,7 @@ export class LevelMap {
       ctx.fillStyle = 'rgba(20,5,40,0.4)';
       ctx.fillRect(x - 5, y - r - 2, 10, 2);
       ctx.drawImage(getSprite(type, expr), x - 8, y - r - 17 + hop);
+      drawHat(ctx, this.app.settings.hat, type, x - 8, y - r - 17 + hop, 16, 16);
       if (Math.floor(this.time * 2) % 2) drawText(ctx, 'PLAY!', x, y + r + 3, { color: '#ffffff', align: 'center', outline: '#1a0b2e' });
     }
   }

@@ -7,6 +7,7 @@ import { LevelMap } from './map.js';
 import { Book } from './book.js';
 import { Settings } from './settings.js';
 import { checkStickers } from './stickers.js';
+import { HATS, hatUnlocked, drawHat } from './hats.js';
 import { getSprite } from './sprites.js';
 import { drawText, panel } from './pixel.js';
 import { load, save } from './storage.js';
@@ -44,6 +45,13 @@ const app = {
   /** Award any newly earned stickers with a toast. */
   checkStickers() {
     const fresh = checkStickers(this.settings);
+    const seen = (this.settings.hatsSeen = this.settings.hatsSeen || { none: 1 });
+    for (const hat of HATS) {
+      if (!seen[hat.id] && hatUnlocked(hat, this.settings)) {
+        seen[hat.id] = 1;
+        fresh.push({ name: hat.name, hat: hat.id, icon: [0, 'happy'] });
+      }
+    }
     if (!fresh.length) return;
     this.persist();
     for (const st of fresh) this.toasts.push({ st, t: -this.toasts.length * 2.6 });
@@ -68,7 +76,8 @@ const app = {
       panel(ctx, x + 2, y + 2, w - 4, 22, '#3d2a7f', null, 3);
       const [type, expr, variant] = t.st.icon;
       ctx.drawImage(getSprite(type, expr, 0, 0, variant || 'n'), x + 5, y + 5);
-      drawText(ctx, 'STICKER GET!', x + 25, y + 5, { color: '#ffe04a' });
+      if (t.st.hat) drawHat(ctx, t.st.hat, type, x + 5, y + 5, 16, 16);
+      drawText(ctx, t.st.hat ? 'NEW HAT! SEE BOOK' : 'STICKER GET!', x + 25, y + 5, { color: '#ffe04a' });
       drawText(ctx, t.st.name, x + 25, y + 14, { color: '#ffffff' });
     }
   },

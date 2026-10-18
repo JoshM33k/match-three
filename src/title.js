@@ -1,5 +1,6 @@
 // Title screen: bouncy logo and a parade of monsters you can poke.
 import { getSprite, MONSTERS } from './sprites.js';
+import { drawHat } from './hats.js';
 import { drawText, textWidth, Button, iconOutlined } from './pixel.js';
 
 const LOGO_COLORS = ['#ff80b8', '#a47bff', '#74e06b', '#ffa040', '#6cc4ff', '#ffe04a'];
@@ -115,6 +116,7 @@ export class Title {
       const variant = m.quirk > 0 && MONSTERS[m.type].quirks ? (Math.floor(this.time * 8) % 2 ? 'q1' : 'q2') : 'n';
       const float = m.type === 4 ? Math.round(Math.sin(this.time * 2.2) * 2) : 0;
       ctx.drawImage(getSprite(m.type, expr, lx, 0, variant), r.x, r.y + Math.round(m.hop) + float, r.size, r.size);
+      drawHat(ctx, this.app.settings.hat, m.type, r.x, r.y + Math.round(m.hop) + float, r.size, r.size);
     });
 
     for (const b of this.buttons) b.draw(ctx, this.time);
