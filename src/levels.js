@@ -8,8 +8,14 @@ export const COLS = 8;
 export function getLevel(n) {
   const rng = makeRng(n * 7919);
   const types = n <= 3 ? 5 : 6;
-  const moves = Math.max(16, 22 - Math.floor(n / 3));
-  const target = Math.round((900 + n * 450 + Math.max(0, n - 5) * 150) / 50) * 50;
+  const moves = Math.max(18, 22 - Math.floor(n / 4));
+  // Targets come from simulated play (tools/simulate.mjs): a typical score
+  // per move on a six-monster board, times a difficulty factor that ramps
+  // from very forgiving to "you'll need a plan". (Five-monster boards score
+  // about twice as much, so the first levels are a gentle warm-up.)
+  const perMove = 215;
+  const difficulty = Math.min(0.82, 0.4 + n * 0.032);
+  const target = Math.round((perMove * moves * difficulty) / 50) * 50;
   const collect = [];
   // every fourth level from 4 has monster eggs to hatch
   const eggs = n >= 4 && n % 4 === 0 ? Math.min(12, 3 + Math.floor(n / 4)) : 0;
@@ -19,7 +25,7 @@ export function getLevel(n) {
     const pool = [...Array(types).keys()];
     for (let i = 0; i < kinds; i++) {
       const type = pool.splice(Math.floor(rng() * pool.length), 1)[0];
-      collect.push({ type, count: Math.min(45, 10 + n * 2 - kinds * 3) });
+      collect.push({ type, count: Math.min(24, 8 + Math.round(n * 0.7)) - (kinds - 1) * 3 });
     }
   }
   return {
@@ -27,7 +33,7 @@ export function getLevel(n) {
     types,
     moves,
     target,
-    stars: [target, Math.round(target * 1.5), Math.round(target * 2.1)],
+    stars: [target, Math.round(target * 1.35), Math.round(target * 1.75)],
     collect,
     eggs,
     seed: n * 104729 + Date.now(),
