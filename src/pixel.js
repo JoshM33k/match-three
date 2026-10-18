@@ -212,6 +212,49 @@ export function iconOutlined(ctx, name, x, y, color, outline, scale = 1) {
   icon(ctx, name, x, y, color, scale);
 }
 
+/** Split text into lines no wider than maxWidth (in pixels at scale 1). */
+export function wrapText(text, maxWidth) {
+  const lines = [];
+  let line = '';
+  for (const word of text.split(' ')) {
+    const next = line ? line + ' ' + word : word;
+    if (textWidth(next) > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else line = next;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+/** Draw a multi-colour pixel pattern; `colors` maps characters to fills. */
+export function pattern(ctx, rows, x, y, colors) {
+  x = Math.round(x);
+  y = Math.round(y);
+  for (let r = 0; r < rows.length; r++) {
+    for (let c = 0; c < rows[r].length; c++) {
+      const col = colors[rows[r][c]];
+      if (!col) continue;
+      ctx.fillStyle = col;
+      ctx.fillRect(x + c, y + r, 1, 1);
+    }
+  }
+}
+
+export const HAND = [
+  '...##......',
+  '..#ww#.....',
+  '..#ww#.....',
+  '..#ww####..',
+  '..#wwwww###',
+  '###wwwwwww#',
+  '#w#wwwwwww#',
+  '#wwwwwwwww#',
+  '.#wwwwwwww#',
+  '..#wwwwww#.',
+  '...######..',
+];
+
 /** Filled pixel disc. */
 export function fillCircle(ctx, cx, cy, r, color) {
   ctx.fillStyle = color;

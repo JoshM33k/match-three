@@ -14,7 +14,7 @@ import {
   key,
 } from './board.js';
 import { getSprite, monsterColor, monsterLight, RAINBOW_COLORS, RAINBOW_FRAMES, EGG_TYPE } from './sprites.js';
-import { drawText, panel, roundRect, icon, iconOutlined, Button, pixelLine, pixelCircle, textWidth } from './pixel.js';
+import { drawText, panel, roundRect, icon, iconOutlined, Button, pixelLine, pixelCircle, textWidth, wrapText, pattern, HAND } from './pixel.js';
 import { getLevel, ROWS, COLS } from './levels.js';
 
 const POP_GROW = 0.1;
@@ -29,6 +29,14 @@ const TIPS = ['SWIPE TO SWAP!', 'MATCH 4 FOR A BLASTER', 'L OR T MAKES A BOMB', 
 
 // How long each species' idle quirk lasts (seconds), by monster type.
 const QUIRK_TIME = [0.6, 0.9, 0.7, 0.4, 1.1, 0.6];
+
+// Shown once, the first time a player meets each thing.
+const NEW_THINGS = {
+  line: { title: 'BLASTER!', text: 'MATCHING 4 MADE A BLASTER. MATCH IT OR SWAP IT TO CLEAR A WHOLE LINE!' },
+  bomb: { title: 'BOMB!', text: 'L AND T SHAPES MAKE BOMBS. THEY BLAST EVERY MONSTER AROUND THEM!' },
+  rainbow: { title: 'RAINBOW!', text: 'MATCHING 5 MADE A RAINBOW. SWAP IT WITH ANY MONSTER TO POP EVERY ONE OF THAT KIND!' },
+  egg: { title: 'EGGS!', text: "EGGS CAN'T MOVE. MATCH NEXT TO THEM TO CRACK THEM. TWO HITS AND OUT POPS A BABY!" },
+};
 
 let nextId = 1;
 
@@ -127,7 +135,18 @@ export class Game {
     });
     this.state = 'fall';
     this.overlay = { kind: 'intro', t: 0 };
+    this.pendingTip = null;
+    if (this.level.eggs) this.introduce('egg', { type: EGG_TYPE, special: null, hp: 1 }, 0.3);
     this.setButtons();
+  }
+
+  /** Queue a one-time explainer for something new (if never seen). */
+  introduce(kind, tile, wait = 0.7) {
+    const seen = this.app.settings.seen;
+    if (seen[kind] || this.pendingTip) return;
+    seen[kind] = true;
+    this.app.persist();
+    this.pendingTip = { kind: 'tip', t: 0, wait, what: kind, tile: { type: tile.type, special: tile.special, hp: tile.hp }, ...NEW_THINGS[kind] };
   }
 
   /** Swap some monsters for eggs while keeping the board playable. */
@@ -288,6 +307,10 @@ export class Game {
     }
     if (this.overlay) {
       if (this.overlay.kind === 'intro' && this.overlay.t > 0.3) this.overlay.t = Math.max(this.overlay.t, 2.2);
+      if (this.overlay.kind === 'tip' && this.overlay.t > 0.5) {
+        this.overlay = null;
+        this.setButtons();
+      }
       return;
     }
     this.wake();
@@ -625,6 +648,7 @@ export class Game {
       this.burst(t.x, t.y, '#ffffff', 10, true);
       this.effects.push({ kind: 'ring', r, c, t: 0, color: '#ffffff' });
       this.audio.special(1 + this.combo * 0.05);
+      this.introduce(g.special === 'lineH' || g.special === 'lineV' ? 'line' : g.special, t);
     }
     this.pending = null;
     const moves = applyGravity(grid, () => new Tile(Math.floor(this.rng() * this.level.types)));
@@ -812,7 +836,16 @@ export class Game {
         this.audio.star(o.shown);
         o.shown++;
       }
-      if (o.kind === 'pause') return;
+      if (o.kind === 'pause' || o.kind === 'tip') return;
+    } else if (this.pendingTip && this.state !== 'done') {
+      this.pendingTip.wait -= dt;
+      if (this.pendingTip.wait <= 0) {
+        this.overlay = this.pendingTip;
+        this.pendingTip = null;
+        this.audio.special(1.2);
+        this.setButtons();
+        return;
+      }
     }
 
     this.updateTiles(dt);
@@ -862,7 +895,7 @@ export class Game {
 
   updateIdle(dt) {
     this.idleT += dt;
-    const hintDelay = this.level.n === 1 ? 3 : 7;
+    const hintDelay = this.level.n === 1 ? (this.moves === this.level.moves ? 0.6 : 3) : 7;
     if (!this.hint && this.idleT > hintDelay && !this.selected) {
       const moves = findValidMoves(this.grid);
       if (moves.length) this.hint = moves[Math.floor(Math.random() * moves.length)];
@@ -1109,6 +1142,7 @@ export class Game {
     this.drawFlyers(ctx);
     this.drawParticles(ctx);
     this.drawTexts(ctx);
+    this.drawHand(ctx);
     this.drawBar(ctx);
     this.drawOverlay(ctx);
   }
@@ -1469,6 +1503,25 @@ export class Game {
     });
   }
 
+  /** Level 1 tutorial: a little hand demonstrates the first swipe. */
+  drawHand(ctx) {
+    if (this.level.n !== 1 || this.moves !== this.level.moves || this.state !== 'idle' || this.overlay || !this.hint) return;
+    const k = (this.time % 1.6) / 1.6;
+    if (k > 0.85) return;
+    const m = Math.min(1, Math.max(0, (k - 0.2) / 0.45));
+    const e = ease(m);
+    const [ar, ac] = this.hint.a;
+    const [br, bc] = this.hint.b;
+    const x = this.boardX + (ac + (bc - ac) * e + 0.5) * this.cell;
+    const y = this.boardY + (ar + (br - ar) * e + 0.5) * this.cell;
+    const press = k > 0.12 && k < 0.7 ? 1 : 0;
+    pattern(ctx, HAND, x - 3, y + 1 + press, { '#': '#1a0b2e', w: '#ffffff' });
+    if (press) {
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.fillRect(Math.round(x) - 1, Math.round(y) - 3, 3, 1);
+    }
+  }
+
   drawBar(ctx) {
     for (const b of this.barButtons) b.draw(ctx, this.time);
     const tip = TIPS[this.tip];
@@ -1507,6 +1560,28 @@ export class Game {
     ctx.fillStyle = 'rgba(20,6,40,0.62)';
     ctx.fillRect(0, 0, this.app.vw, this.app.vh);
 
+    if (o.kind === 'tip') {
+      const w = Math.min(this.bw + 8, 170);
+      const lines = wrapText(o.text, w - 16);
+      const h = 64 + lines.length * 8;
+      const x = cx - Math.floor(w / 2);
+      const pop = o.t < 0.15 ? Math.round((1 - o.t / 0.15) * 8) : 0;
+      const y = midY - Math.floor(h / 2) + pop;
+      panel(ctx, x, y, w, h, '#3d2a7f', '#140726', 4);
+      roundRect(ctx, x + 2, y + 2, w - 4, 3, 1, '#ff7eb6');
+      drawText(ctx, 'NEW!', x + 6, y + 8, { color: '#ff8fc0', outline: '#140726' });
+      drawText(ctx, o.title, cx, y + 9, { color: '#ffe04a', scale: 2, align: 'center', outline: '#140726' });
+      const t = o.tile;
+      const variant = t.special === 'lineH' ? 'lh' : t.special === 'lineV' ? 'lv' : t.special === 'bomb' ? (Math.floor(this.time * 6) % 2 ? 'b0' : 'b1') : t.hp === 1 ? 'e1' : 'n';
+      const frame = t.type < 0 ? Math.floor(this.time * 12) % RAINBOW_FRAMES : 0;
+      const hop = Math.round(Math.min(0, Math.sin(this.time * 5)) * 4);
+      ctx.drawImage(getSprite(t.type, 'excited', 0, 0, variant, frame), cx - 16, y + 23 + hop, 32, 32);
+      lines.forEach((line, i) => drawText(ctx, line, cx, y + 59 + i * 8, { color: '#ffffff', align: 'center' }));
+      if (o.t > 0.5 && Math.floor(this.time * 2) % 2) {
+        drawText(ctx, 'TAP TO CONTINUE', cx, y + h + 4, { color: '#ffe9f4', align: 'center', outline: '#140726' });
+      }
+      return;
+    }
     if (o.kind === 'pause') {
       const y = this.boardY + 6;
       panel(ctx, cx - 56, y, 112, 152, '#3d2a7f', '#140726', 4);
