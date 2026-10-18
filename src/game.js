@@ -544,6 +544,7 @@ export class Game {
     }
     this.state = 'idle';
     this.idleT = 0;
+    this.app.checkStickers();
   }
 
   specialCells() {
@@ -733,6 +734,9 @@ export class Game {
       this.effects.push({ kind: 'ring', r, c, t: 0, color: '#ffffff' });
       this.audio.special(1 + this.combo * 0.05);
       this.app.buzz(18);
+      const kind = g.special === 'lineH' || g.special === 'lineV' ? 'line' : g.special;
+      this.stats.made = this.stats.made || {};
+      this.stats.made[kind] = (this.stats.made[kind] || 0) + 1;
       this.introduce(g.special === 'lineH' || g.special === 'lineV' ? 'line' : g.special, t);
     }
     this.pending = null;
@@ -823,6 +827,7 @@ export class Game {
     s.best[n] = Math.max(s.best[n] || 0, this.score);
     s.level = Math.max(s.level, n + 1);
     this.app.persist();
+    this.app.checkStickers();
     this.overlay = { kind: 'win', t: 0, stars, shown: 0, word: this.boss ? 'VICTORY!' : WIN_WORDS[n % WIN_WORDS.length], best: s.best[n] };
     this.setButtons();
     this.eachTile((t) => t.say('happy', 99));
@@ -846,6 +851,7 @@ export class Game {
     const isBest = this.score > d.best;
     d.best = Math.max(d.best, this.score);
     this.app.persist();
+    this.app.checkStickers();
     this.overlay = { kind: 'daily', t: 0, best: d.best, streak: d.streak, isBest };
     this.setButtons();
     this.eachTile((t) => t.say('happy', 99));
@@ -997,6 +1003,7 @@ export class Game {
       const words = ['NICE!', 'DREAMY!', 'SO CALM!', 'BLISS!', 'MONSTER ZEN!'];
       this.bigText(words[Math.min(words.length - 1, this.milestone / 5000 - 1)], '#9fe8ff');
       this.milestone += 5000;
+      this.app.checkStickers();
       this.confetti();
       this.audio.win();
       this.app.persist();

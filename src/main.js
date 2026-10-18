@@ -6,6 +6,9 @@ import { Title } from './title.js';
 import { LevelMap } from './map.js';
 import { Book } from './book.js';
 import { Settings } from './settings.js';
+import { checkStickers } from './stickers.js';
+import { getSprite } from './sprites.js';
+import { drawText, panel } from './pixel.js';
 import { load, save } from './storage.js';
 
 const canvas = document.getElementById('screen');
@@ -31,6 +34,38 @@ const app = {
 
   persist() {
     save(this.settings);
+  },
+  toasts: [],
+  /** Award any newly earned stickers with a toast. */
+  checkStickers() {
+    const fresh = checkStickers(this.settings);
+    if (!fresh.length) return;
+    this.persist();
+    for (const st of fresh) this.toasts.push({ st, t: -this.toasts.length * 2.6 });
+  },
+  drawToasts(ctx, dt) {
+    const t0 = this.toasts[0];
+    if (!t0) return;
+    for (const t of this.toasts) t.t += dt;
+    this.toasts = this.toasts.filter((t) => t.t < 2.6);
+    for (const t of this.toasts) {
+      if (t.t < 0) continue;
+      if (!t.sounded) {
+        t.sounded = true;
+        this.audio.special(1.3);
+        this.buzz(20);
+      }
+      const k = t.t < 0.25 ? t.t / 0.25 : t.t > 2.3 ? (2.6 - t.t) / 0.3 : 1;
+      const w = 150;
+      const x = Math.floor((this.vw - w) / 2);
+      const y = Math.round(this.safeTop + 4 - (1 - k) * 40);
+      panel(ctx, x, y, w, 26, '#ffe04a', '#140726', 4);
+      panel(ctx, x + 2, y + 2, w - 4, 22, '#3d2a7f', null, 3);
+      const [type, expr, variant] = t.st.icon;
+      ctx.drawImage(getSprite(type, expr, 0, 0, variant || 'n'), x + 5, y + 5);
+      drawText(ctx, 'STICKER GET!', x + 25, y + 5, { color: '#ffe04a' });
+      drawText(ctx, t.st.name, x + 25, y + 14, { color: '#ffffff' });
+    }
   },
   buzz(pattern) {
     if (this.settings.haptics !== false && navigator.vibrate) navigator.vibrate(pattern);
@@ -170,6 +205,7 @@ function frame(now) {
   for (let i = 0; i < speed; i++) app.screen.update(real);
   app.background.draw(ctx, time);
   app.screen.render(ctx);
+  app.drawToasts(ctx, real * speed);
   display.drawImage(low, app.ox, app.oy, app.vw * app.scale, app.vh * app.scale);
   requestAnimationFrame(frame);
 }
