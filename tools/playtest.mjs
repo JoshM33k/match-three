@@ -49,7 +49,7 @@ for (const n of levels) {
   console.log(`level ${n}: ${res} after ${moves} moves`);
 }
 
-const combos = [['rainbow', 'rainbow'], ['rainbow', 'bomb'], ['rainbow', 'lineH'], ['bomb', 'bomb'], ['lineH', 'lineV'], ['bomb', 'lineV'], ['rainbow', null]];
+const combos = [['rainbow', 'rainbow'], ['rainbow', 'bomb'], ['rainbow', 'lineH'], ['bomb', 'bomb'], ['lineH', 'lineV'], ['bomb', 'lineV'], ['rainbow', null], ['pal', 'pal'], ['pal', 'bomb'], ['rainbow', 'pal'], ['pal', null]];
 for (const [a, b] of combos) {
   await page.evaluate((l) => window.__monsterPop.play(l), levels[levels.length - 1]);
   await settle();

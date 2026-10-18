@@ -27,11 +27,11 @@ export function getLevel(n) {
   // per move on a six-monster board, times a difficulty factor that ramps
   // from very forgiving to "you'll need a plan". (Five-monster boards score
   // about twice as much, so the first levels are a gentle warm-up.)
-  const perMove = 215;
+  const perMove = 245;
   const difficulty = Math.min(0.82, 0.4 + n * 0.032);
   const target = Math.round((perMove * moves * difficulty) / 50) * 50;
   // Every fifth level is a boss battle against a giant crowned monster.
-  const boss = n % 5 === 0 ? { type: (n / 5 - 1) % 6, hp: Math.min(110, 80 + n) } : null;
+  const boss = n % 5 === 0 ? { type: (n / 5 - 1) % 6, hp: Math.min(125, 90 + n) } : null;
   const collect = [];
   // every fourth level from 4 has monster eggs to hatch
   const eggs = !boss && n >= 4 && n % 4 === 0 ? Math.min(12, 3 + Math.floor(n / 4)) : 0;

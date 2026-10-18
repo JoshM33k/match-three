@@ -28,7 +28,7 @@ const CROWN = ['#.#.#', '#####', '#####'];
 
 const PRAISE = ['YUM!', 'CHOMP!', 'RAWR!', 'MUNCH!', 'MONSTROUS!', 'GOBBLED!', 'SPOOKTACULAR!'];
 const WIN_WORDS = ['YUMMY!', 'DELICIOUS!', 'MONSTROUS!', 'RAWRSOME!'];
-const TIPS = ['SWIPE TO SWAP!', 'MATCH 4 FOR A BLASTER', 'L OR T MAKES A BOMB', 'MATCH 5 FOR A RAINBOW', 'SWAP TWO SPECIALS!'];
+const TIPS = ['SWIPE TO SWAP!', 'MATCH 4 FOR A BLASTER', 'L OR T MAKES A BOMB', 'MATCH 5 FOR A RAINBOW', 'SWAP TWO SPECIALS!', 'A SQUARE MAKES A PAL'];
 
 // How long each species' idle quirk lasts (seconds), by monster type.
 const QUIRK_TIME = [0.6, 0.9, 0.7, 0.4, 1.1, 0.6];
@@ -37,6 +37,7 @@ const QUIRK_TIME = [0.6, 0.9, 0.7, 0.4, 1.1, 0.6];
 const NEW_THINGS = {
   line: { title: 'BLASTER!', text: 'MATCHING 4 MADE A BLASTER. MATCH IT OR SWAP IT TO CLEAR A WHOLE LINE!' },
   bomb: { title: 'BOMB!', text: 'L AND T SHAPES MAKE BOMBS. THEY BLAST EVERY MONSTER AROUND THEM!' },
+  pal: { title: 'MONSTER PAL!', text: 'A 2X2 SQUARE MADE A PAL. SET IT OFF AND IT FLIES AWAY TO HELP WITH YOUR GOALS!' },
   rainbow: { title: 'RAINBOW!', text: 'MATCHING 5 MADE A RAINBOW. SWAP IT WITH ANY MONSTER TO POP EVERY ONE OF THAT KIND!' },
   goo: { title: 'GOO!', text: 'POP MONSTERS ON TOP OF THE STICKY PINK GOO TO CLEAN IT ALL UP.' },
   egg: { title: 'EGGS!', text: "EGGS CAN'T MOVE. MATCH NEXT TO THEM TO CRACK THEM. TWO HITS AND OUT POPS A BABY!" },
@@ -163,6 +164,22 @@ export class Game {
     if (this.level.eggs) this.introduce('egg', { type: EGG_TYPE, special: null, hp: 1 }, 0.3);
     if (this.level.goo) this.introduce('goo', { type: GOO_TYPE, special: null }, 0.3);
     this.setButtons();
+  }
+
+  /** Where a monster pal flies: whatever helps the goals most. */
+  palTarget(grid, cleared, e) {
+    const options = [[], [], [], []];
+    grid.forEach((row, r) =>
+      row.forEach((t, c) => {
+        if (!t || cleared.has(key(r, c)) || (Math.abs(r - e.r) + Math.abs(c - e.c) <= 1)) return;
+        if (this.goo[r][c]) options[0].push([r, c]);
+        else if (t.type === EGG_TYPE) options[1].push([r, c]);
+        else if (this.goals.some((g) => g.type === t.type && g.left > 0)) options[2].push([r, c]);
+        else options[3].push([r, c]);
+      })
+    );
+    const list = options.find((o) => o.length);
+    return list ? list[Math.floor(Math.random() * list.length)] : null;
   }
 
   /** Queue a one-time explainer for something new (if never seen). */
@@ -572,7 +589,7 @@ export class Game {
     const spawns = groups.filter((g) => g.special && g.spawn);
     for (const g of spawns) protect.add(key(...g.spawn));
     const seedCells = [...seeds, ...groups.flatMap((g) => g.cells)];
-    const res = expandClears(grid, seedCells, effects, { protect, consumed });
+    const res = expandClears(grid, seedCells, effects, { protect, consumed, palTarget: (g, cl, e) => this.palTarget(g, cl, e) });
 
     // Eggs never pop: anything that hits them, or a match right next to
     // them, cracks them instead.
@@ -659,16 +676,21 @@ export class Game {
     });
 
     for (const g of spawns) {
-      points += { lineH: 60, lineV: 60, bomb: 100, rainbow: 200 }[g.special];
+      points += { lineH: 60, lineV: 60, bomb: 100, rainbow: 200, pal: 80 }[g.special] || 0;
     }
 
     for (const e of res.effects) {
       const fx = { ...e, t: -e.delay, started: false };
+      if (e.kind === 'pal') {
+        const src = grid[e.r][e.c];
+        fx.type = src ? src.type : 0;
+      }
       if (e.kind === 'color') {
         fx.targets = [...res.cleared.values()].filter(({ r, c }) => grid[r][c].type === e.type || (r === e.r && c === e.c));
       }
       this.effects.push(fx);
-      if (e.kind === 'line' || e.kind === 'cross') this.audio.zap(e.delay);
+      if (e.kind === 'pal') this.audio.monster(fx.type, 'whee', 1.2, e.delay);
+      else if (e.kind === 'line' || e.kind === 'cross') this.audio.zap(e.delay);
       else if (e.kind === 'bomb') this.audio.boom(e.delay);
       else if (e.kind === 'color') this.audio.sparkle(pitch, e.delay);
       else if (e.kind === 'all') {
@@ -1680,6 +1702,8 @@ export class Game {
         ctx.fillRect(Math.round(sx) + 3, Math.round(sy) - 10, 1, 1);
         ctx.fillRect(Math.round(sx) + 6, Math.round(sy) - 11, 1, 1);
       }
+    } else if (t.special === 'pal') {
+      this.drawWings(ctx, sx, sy, 0);
     } else if (t.special === 'rainbow') {
       if (Math.floor(this.time * 3 + t.phase) % 3 === 0) {
         ctx.fillStyle = '#ffffff';
@@ -1687,6 +1711,19 @@ export class Game {
         ctx.fillRect(Math.round(sx) + 7, Math.round(sy) + 3, 1, 1);
       }
     }
+  }
+
+  /** Little flapping wings either side of a pal. */
+  drawWings(ctx, sx, sy, phase) {
+    const up = Math.floor(this.time * 10 + phase) % 2;
+    const wing = up ? ['.##', '###', '#..'] : ['#..', '###', '.##'];
+    const x = Math.round(sx);
+    const y = Math.round(sy) - 4;
+    const flip = (rows) => rows.map((row) => row.split('').reverse().join(''));
+    pattern(ctx, wing.map((r) => r.replace(/#/g, 'o')), x - 11, y - 1, { o: '#1a0b2e' });
+    pattern(ctx, flip(wing).map((r) => r.replace(/#/g, 'o')), x + 8, y - 1, { o: '#1a0b2e' });
+    pattern(ctx, flip(wing), x - 10, y, { '#': '#ffffff' });
+    pattern(ctx, wing, x + 7, y, { '#': '#ffffff' });
   }
 
   drawEffects(ctx) {
@@ -1752,6 +1789,18 @@ export class Game {
           ctx.fillStyle = `rgba(255,255,255,${0.7 * (1 - k)})`;
           ctx.fillRect(bx, by, bw, bh);
           pixelCircle(ctx, cx, cy, k * bw, '#ffffff', 2);
+          break;
+        }
+        case 'pal': {
+          // the pal flies off to its target
+          if (!e.target || e.t > 0.45) break;
+          const k = Math.min(1, e.t / 0.4);
+          const tx = bx + (e.target[1] + 0.5) * cell;
+          const ty = by + (e.target[0] + 0.5) * cell;
+          const fx = cx + (tx - cx) * ease(k);
+          const fy = cy + (ty - cy) * ease(k) - Math.sin(k * Math.PI) * 24;
+          ctx.drawImage(getSprite(e.type, 'excited'), Math.round(fx - 8), Math.round(fy - 8));
+          this.drawWings(ctx, fx, fy, 0.5);
           break;
         }
         case 'ring': {

@@ -5,6 +5,7 @@ export const STICKERS = [
   { id: 'combo6', name: 'MONSTER MAYHEM', desc: 'SET OFF A 6X COMBO.', icon: [1, 'excited'], test: (s) => s.stats.bestCombo >= 6 },
   { id: 'line', name: 'BLASTER MASTER', desc: 'MAKE 10 BLASTERS.', icon: [0, 'idle', 'lh'], test: (s) => made(s, 'line') >= 10 },
   { id: 'bomb', name: 'KABOOM', desc: 'MAKE 5 BOMBS.', icon: [1, 'idle', 'b0'], test: (s) => made(s, 'bomb') >= 5 },
+  { id: 'pal', name: 'BEST BUDS', desc: 'MAKE 5 MONSTER PALS.', icon: [4, 'love'], test: (s) => made(s, 'pal') >= 5 },
   { id: 'rainbow', name: 'OVER THE RAINBOW', desc: 'MAKE A RAINBOW MONSTER.', icon: [-1, 'happy', 'rb'], test: (s) => made(s, 'rainbow') >= 1 },
   { id: 'hatch1', name: "IT'S A BABY!", desc: 'HATCH AN EGG.', icon: [-2, 'idle', 'e1'], test: (s) => s.stats.hatched >= 1 },
   { id: 'hatch25', name: 'MONSTER NANNY', desc: 'HATCH 25 EGGS.', icon: [-2, 'idle', 'e2'], test: (s) => s.stats.hatched >= 25 },

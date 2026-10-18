@@ -6,7 +6,7 @@ import {
 } from '../src/board.js';
 import { getLevel, ROWS, COLS } from '../src/levels.js';
 
-const SPECIAL_BONUS = { lineH: 60, lineV: 60, bomb: 100, rainbow: 200 };
+const SPECIAL_BONUS = { lineH: 60, lineV: 60, bomb: 100, rainbow: 200, pal: 80 };
 
 function resolve(grid, rng, types, first, tally, goo) {
   let score = 0;
