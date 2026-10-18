@@ -746,6 +746,11 @@ export class Game {
     }
     this.pending = null;
     const moves = applyGravity(grid, () => new Tile(Math.floor(this.rng() * this.level.types)));
+    const dropped = moves.filter((m) => m.spawned);
+    if (dropped.length >= 6 && this.audio.throttle('whee', 1.5)) {
+      const t = dropped[Math.floor(Math.random() * dropped.length)].tile;
+      this.audio.monster(t.type, 'whee', 1, 0.05);
+    }
     for (const m of moves) {
       const t = m.tile;
       t.x = m.c;
@@ -837,6 +842,7 @@ export class Game {
     this.setButtons();
     this.eachTile((t) => t.say('happy', 99));
     this.confetti();
+    this.audio.chorus();
   }
 
   showDailyEnd() {

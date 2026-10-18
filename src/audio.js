@@ -96,6 +96,73 @@ const SONGS = {
   },
 };
 
+// Alternate match phrases (picked at random with the original) and a
+// "wheee" for long drops, per species.
+const EXTRA = [
+  {
+    match: [
+      [
+        { wave: 'sine', f: [[0, 1200], [0.08, 500]], dur: 0.09, vol: 0.35 },
+        { wave: 'sine', f: [[0, 1000], [0.08, 420]], dur: 0.09, vol: 0.32, at: 0.08 },
+        { wave: 'sine', f: [[0, 820], [0.1, 300]], dur: 0.11, vol: 0.3, at: 0.16 },
+      ],
+      [{ wave: 'sine', f: [[0, 380], [0.08, 300], [0.2, 900]], dur: 0.22, vol: 0.38 }],
+    ],
+    whee: [{ wave: 'sine', f: [[0, 400], [0.35, 1300]], dur: 0.38, vol: 0.25, vib: [9, 30] }],
+  },
+  {
+    match: [
+      [{ wave: 'sawtooth', f: [[0, 190], [0.12, 95]], dur: 0.14, vol: 0.4, formants: [500, 900], trem: [40, 0.5] }],
+      [
+        { wave: 'sawtooth', f: [[0, 110], [0.12, 140]], dur: 0.14, vol: 0.38, lp: 900, trem: [30, 0.7] },
+        { wave: 'sawtooth', f: [[0, 130], [0.14, 170]], dur: 0.16, vol: 0.38, lp: 900, trem: [30, 0.7], at: 0.17 },
+      ],
+    ],
+    whee: [{ wave: 'sawtooth', f: [[0, 120], [0.4, 260]], dur: 0.42, vol: 0.3, formants: [600, 1000], trem: [24, 0.4] }],
+  },
+  {
+    match: [
+      [
+        { wave: 'square', f: [[0, 500]], dur: 0.07, vol: 0.18, lp: 2000 },
+        { wave: 'square', f: [[0, 330]], dur: 0.09, vol: 0.18, lp: 2000, at: 0.08 },
+      ],
+      [{ wave: 'square', f: [[0, 260], [0.4, 700]], dur: 0.42, vol: 0.17, lp: 2400, q: 6, vib: [24, 120] }],
+    ],
+    whee: [{ wave: 'square', f: [[0, 300], [0.4, 1000]], dur: 0.42, vol: 0.14, lp: 2600, vib: [20, 80] }],
+  },
+  {
+    match: [
+      [{ wave: 'sawtooth', f: [[0, 420], [0.06, 640], [0.16, 520]], dur: 0.18, vol: 0.32, formants: [900, 1600] }],
+      [{ wave: 'sawtooth', f: [[0, 200], [0.3, 330], [0.45, 210]], dur: 0.46, vol: 0.36, formants: [700, 1150], trem: [26, 0.35] }],
+    ],
+    whee: [{ wave: 'sawtooth', f: [[0, 300], [0.36, 800]], dur: 0.38, vol: 0.28, formants: [800, 1400] }],
+  },
+  {
+    match: [
+      [
+        { wave: 'triangle', f: [[0, 380], [0.15, 420]], dur: 0.17, vol: 0.34, vib: [6, 20] },
+        { wave: 'triangle', f: [[0, 560], [0.25, 620]], dur: 0.27, vol: 0.36, vib: [6, 30], at: 0.18 },
+      ],
+      [
+        { wave: 'triangle', f: [[0, 900], [0.05, 800]], dur: 0.06, vol: 0.3 },
+        { wave: 'triangle', f: [[0, 1000], [0.05, 880]], dur: 0.07, vol: 0.3, at: 0.1 },
+      ],
+    ],
+    whee: [{ wave: 'triangle', f: [[0, 350], [0.45, 950]], dur: 0.48, vol: 0.3, vib: [6, 40], attack: 0.05 }],
+  },
+  {
+    match: [
+      [{ wave: 'square', f: [[0, 1760], [0.3, 1700]], dur: 0.32, vol: 0.12, lp: 5000 }],
+      [0, 1, 2, 3].map((i) => ({ wave: 'square', f: [[0, 1300 + i * 150], [0.04, 1600 + i * 150]], dur: 0.045, vol: 0.12, lp: 4500, at: i * 0.06 })),
+    ],
+    whee: [{ wave: 'square', f: [[0, 800], [0.3, 2200]], dur: 0.32, vol: 0.1, lp: 5000 }],
+  },
+];
+EXTRA.forEach((x, i) => {
+  VOICES[i].matches = [VOICES[i].match, ...x.match];
+  VOICES[i].whee = x.whee;
+});
+
 const midi = (n) => 440 * Math.pow(2, (n - 69) / 12);
 
 export class Sound {
@@ -261,7 +328,18 @@ export class Sound {
     const gap = mood === 'land' ? 0.05 : 0.07;
     if (!when && !this.throttle(`m${type}${mood}`, gap)) return;
     const wobble = 0.94 + Math.random() * 0.12;
-    for (const spec of VOICES[type][mood]) this.tone(spec, pitch * wobble, when);
+    const v = VOICES[type];
+    const specs = mood === 'match' ? v.matches[Math.floor(Math.random() * v.matches.length)] : v[mood];
+    for (const spec of specs) this.tone(spec, pitch * wobble, when);
+  }
+
+  /** Everybody cheers, one after another. */
+  chorus() {
+    if (!this.ready() || !this.sfxOn) return;
+    [0, 3, 1, 4, 2, 5].forEach((type, i) => {
+      const specs = VOICES[type].matches[0];
+      for (const spec of specs) this.tone(spec, 1.15 + i * 0.03, 0.9 + i * 0.13);
+    });
   }
 
   pop(pitch = 1, when = 0) {
