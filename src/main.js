@@ -287,3 +287,12 @@ requestAnimationFrame(frame);
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
+
+// Pause and save when the app goes to the background.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) return;
+  app.persist();
+  const g = app.game;
+  if (g && app.screen === g && !g.overlay && g.state !== 'done') g.pause();
+});
+window.addEventListener('pagehide', () => app.persist());
