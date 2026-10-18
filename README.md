@@ -53,4 +53,8 @@ Expressions include idle, blink, happy, excited (selected), surprised (falling),
 npm test         # board rule tests (node --test)
 npm run sprites  # writes sprite-sheet.png with every monster and expression
 npm run icons    # regenerates the app icons from the sprites
+npm run simulate # plays thousands of headless games to check level difficulty
+npm run playtest # browser play-test (needs Playwright and `npm start` running)
 ```
+
+Add `?speed=4` (up to 8) to the URL to run the game faster when testing.

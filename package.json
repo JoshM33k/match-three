@@ -8,6 +8,8 @@
     "start": "npx --yes http-server -c-1 -p 8080 .",
     "test": "node --test tests/*.test.js",
     "icons": "node tools/make-icons.mjs",
-    "sprites": "node tools/sprite-sheet.mjs sprite-sheet.png"
+    "sprites": "node tools/sprite-sheet.mjs sprite-sheet.png",
+    "simulate": "node tools/simulate.mjs",
+    "playtest": "node tools/playtest.mjs"
   }
 }
