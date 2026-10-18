@@ -27,6 +27,9 @@ const PRAISE = ['YUM!', 'CHOMP!', 'RAWR!', 'MUNCH!', 'MONSTROUS!', 'GOBBLED!', '
 const WIN_WORDS = ['YUMMY!', 'DELICIOUS!', 'MONSTROUS!', 'RAWRSOME!'];
 const TIPS = ['SWIPE TO SWAP!', 'MATCH 4 FOR A BLASTER', 'L OR T MAKES A BOMB', 'MATCH 5 FOR A RAINBOW', 'SWAP TWO SPECIALS!'];
 
+// How long each species' idle quirk lasts (seconds), by monster type.
+const QUIRK_TIME = [0.6, 0.9, 0.7, 0.4, 1.1, 0.6];
+
 let nextId = 1;
 
 class Tile {
@@ -57,6 +60,9 @@ class Tile {
     this.sleepy = false;
     this.zT = 0;
     this.phase = Math.random() * Math.PI * 2;
+    this.quirkT = 2 + Math.random() * 6;
+    this.quirk = 0;
+    this.quirkSide = 1;
   }
 
   say(expr, t) {
@@ -903,6 +909,8 @@ export class Game {
         }
       }
 
+      this.updateQuirk(t, dt);
+
       if (t.sleepy) {
         t.zT -= dt;
         if (t.zT <= 0) {
@@ -923,9 +931,51 @@ export class Game {
     });
   }
 
+  /** Little species-specific idle animations so the board never feels static. */
+  updateQuirk(t, dt) {
+    if (t.quirk > 0) t.quirk -= dt;
+    const busy = t.pop || t.falling || t.move || t.sleepy || t.type < 0 || this.state === 'done';
+    if (busy) return;
+    t.quirkT -= dt;
+    if (t.quirkT > 0) return;
+    t.quirkT = 3 + Math.random() * 7;
+    t.quirk = QUIRK_TIME[t.type];
+    t.quirkSide = Math.random() < 0.5 ? 1 : 2;
+    const { x, y } = this.tileScreen(t);
+    if (t.type === 0) {
+      t.squashV = 2.2; // jelly wobble
+    } else if (t.type === 1) {
+      // Grumble huffs steam out of both horns
+      for (let i = 0; i < 4; i++) {
+        const side = i % 2 ? 1 : -1;
+        this.particles.push({ x: x + side * 6, y: y - 8, vx: side * (4 + Math.random() * 4), vy: -14 - Math.random() * 8, life: -i * 0.12, max: 0.7, color: '#f4ecff', grav: -6, kind: 'puff' });
+      }
+    } else if (t.type === 5) {
+      this.particles.push({ x: x + (t.quirkSide === 1 ? -7 : 7), y: y - 5, vx: 0, vy: -6, life: 0, max: 0.5, color: '#fff6b0', grav: 0, kind: 'spark' });
+    }
+  }
+
+  quirkVariant(t) {
+    if (t.quirk <= 0 || t.special) return 'n';
+    const fast = Math.floor(this.time * 9) % 2;
+    switch (t.type) {
+      case 0:
+      case 2:
+      case 4:
+        return fast ? 'q1' : 'q2';
+      case 3:
+        return Math.floor(this.time * 14) % 3 ? 'q' + t.quirkSide : 'n';
+      case 5:
+        return Math.floor(this.time * 7) % 2 ? 'q' + t.quirkSide : 'n';
+      default:
+        return 'n';
+    }
+  }
+
   updateEffects(dt) {
     for (const p of this.particles) {
       p.life += dt;
+      if (p.life < 0) continue;
       p.vy += p.grav * dt;
       if (p.kind === 'confetti') p.vx = Math.sin(this.time * 4 + p.ph) * 25;
       p.x += p.vx * dt;
@@ -1099,15 +1149,19 @@ export class Game {
       ctx.fillRect(Math.round(sx - shw / 2), Math.round(sy) + 7, shw, 2);
     }
 
-    let variant = 'n';
+    let variant = this.quirkVariant(t);
     if (t.special === 'lineH') variant = 'lh';
     else if (t.special === 'lineV') variant = 'lv';
     else if (t.special === 'bomb') variant = Math.floor(this.time * 6) % 2 ? 'b0' : 'b1';
     const frame = t.type < 0 ? Math.floor(this.time * 12) % RAINBOW_FRAMES : 0;
     const spr = getSprite(t.type, expr, lx, ly, variant, frame);
     const dx = Math.round(sx - w / 2) + ox;
-    const dy = bottom - h + Math.round(t.hop);
+    let dy = bottom - h + Math.round(t.hop);
+    const ghost = t.type === 4 && !t.pop && !t.falling;
+    if (ghost) dy += Math.round(Math.sin(this.time * 2.2 + t.phase) * 1.4) - 1;
+    if (ghost && t.quirk > 0 && !t.special) ctx.globalAlpha = 0.55;
     ctx.drawImage(spr, dx, dy, w, h);
+    ctx.globalAlpha = 1;
   }
 
   drawSpecialBits(ctx, t, sx, sy) {
@@ -1226,6 +1280,11 @@ export class Game {
         const s = fade > 0.5 ? 2 : 1;
         ctx.fillRect(x, y - s, 1, s * 2 + 1);
         ctx.fillRect(x - s, y, s * 2 + 1, 1);
+      } else if (p.kind === 'puff') {
+        if (p.life < 0) continue;
+        const s = p.life / p.max < 0.4 ? 2 : 3;
+        ctx.fillStyle = fade > 0.5 ? p.color : 'rgba(244,236,255,0.5)';
+        ctx.fillRect(x - (s >> 1), y - (s >> 1), s, s);
       } else if (p.kind === 'z') {
         drawText(ctx, 'z', x + Math.round(Math.sin(p.life * 4) * 2), y, { color: 'rgba(255,255,255,' + fade.toFixed(2) + ')' });
       }

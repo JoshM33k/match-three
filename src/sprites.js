@@ -40,6 +40,8 @@ export const MONSTERS = [
     ],
     face: { ex: 4, ey: 7, my: 11 },
     shine: [[4, 4], [3, 5], [7, 2]],
+    // the droplet tip wobbles
+    quirks: { q1: [[5, 0, 10, 2, -1, 0]], q2: [[5, 0, 10, 2, 1, 0]] },
   },
   {
     name: 'Grumble',
@@ -94,6 +96,8 @@ export const MONSTERS = [
     ],
     face: { ex: 4, ey: 6, my: 11, cyclops: true },
     shine: [[4, 5], [3, 6], [6, 1]],
+    // antenna sways
+    quirks: { q1: [[5, 0, 10, 3, -1, 0]], q2: [[5, 0, 10, 3, 1, 0]] },
   },
   {
     name: 'Fuzz',
@@ -118,6 +122,8 @@ export const MONSTERS = [
     ],
     face: { ex: 4, ey: 6, my: 10 },
     shine: [[4, 5], [5, 4]],
+    // ear twitches (left / right)
+    quirks: { q1: [[1, 0, 4, 2, 0, 1]], q2: [[11, 0, 14, 2, 0, 1]] },
     mouths: {
       idle: ['kkkk', '.tt.'],
       blink: ['kkkk', '.tt.'],
@@ -147,6 +153,8 @@ export const MONSTERS = [
     ],
     face: { ex: 4, ey: 6, my: 10 },
     shine: [[4, 4], [3, 5], [6, 3]],
+    // ghostly skirt flutters
+    quirks: { q1: [[0, 13, 15, 14, 1, 0]], q2: [[0, 13, 15, 14, -1, 0]] },
     mouths: {
       idle: ['kk', 'kk'],
       blink: ['kk', 'kk'],
@@ -175,6 +183,8 @@ export const MONSTERS = [
     ],
     face: { ex: 5, ey: 6, my: 9 },
     shine: [[7, 2], [6, 4]],
+    // waves an arm
+    quirks: { q1: [[0, 5, 2, 6, 0, -1]], q2: [[13, 5, 15, 6, 0, -1]] },
   },
 ];
 
@@ -267,11 +277,28 @@ function expandMask(half) {
 }
 
 const maskCache = new Map();
-function maskFor(def) {
-  let m = maskCache.get(def);
+function maskFor(def, variant = 'n') {
+  const q = def.quirks && def.quirks[variant];
+  const k = q ? `${def.name}|${variant}` : def;
+  let m = maskCache.get(k);
   if (!m) {
     m = expandMask(def.half);
-    maskCache.set(def, m);
+    // Quirk frames nudge a rectangle of the mask: [x0, y0, x1, y1, dx, dy].
+    for (const [x0, y0, x1, y1, dx, dy] of q || []) {
+      const cut = [];
+      for (let y = y0; y <= y1; y++) {
+        for (let x = x0; x <= x1; x++) {
+          cut.push([x, y, m[y][x]]);
+          m[y][x] = '.';
+        }
+      }
+      for (const [x, y, ch] of cut) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (ch !== '.' && nx >= 0 && ny >= 0 && nx < SIZE && ny < SIZE) m[ny][nx] = ch;
+      }
+    }
+    maskCache.set(k, m);
   }
   return m;
 }
@@ -281,12 +308,12 @@ function maskFor(def) {
  * @param {object} def        entry of MONSTERS or RAINBOW
  * @param {string} expr       one of EXPRESSIONS
  * @param {number} lx, ly     look direction (-1..1)
- * @param {string} variant    'n' | 'lh' | 'lv' | 'b0' | 'b1' | 'rb'
+ * @param {string} variant    'n' | 'lh' | 'lv' | 'b0' | 'b1' | 'rb' | 'q1' | 'q2' (idle quirk frames)
  * @param {number} frame      animation frame (rainbow colour offset)
  * @returns {(string|null)[]} SIZE*SIZE hex colours (null = transparent)
  */
 export function buildPixels(def, expr = 'idle', lx = 0, ly = 0, variant = 'n', frame = 0) {
-  const m = maskFor(def);
+  const m = maskFor(def, variant);
   const C = def.colors;
   const px = new Array(SIZE * SIZE).fill(null);
   const at = (x, y) => (x < 0 || y < 0 || x >= SIZE || y >= SIZE ? '.' : m[y][x]);

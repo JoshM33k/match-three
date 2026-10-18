@@ -8,7 +8,7 @@ export class Title {
   constructor(app) {
     this.app = app;
     this.time = 0;
-    this.monsters = MONSTERS.map((_, i) => ({ type: i, hop: 0, hopV: 0, expr: null, exprT: 0, blinkT: Math.random() * 4 }));
+    this.monsters = MONSTERS.map((_, i) => ({ type: i, hop: 0, hopV: 0, expr: null, exprT: 0, blinkT: Math.random() * 4, quirkT: 1 + Math.random() * 4, quirk: 0 }));
     this.layout();
   }
 
@@ -69,6 +69,12 @@ export class Title {
     this.time += dt;
     this.monsters.forEach((m, i) => {
       if (m.exprT > 0) m.exprT -= dt;
+      m.quirk -= dt;
+      m.quirkT -= dt;
+      if (m.quirkT <= 0) {
+        m.quirkT = 2 + Math.random() * 4;
+        m.quirk = 0.7;
+      }
       m.blinkT -= dt;
       if (m.blinkT < -0.12) m.blinkT = 2 + Math.random() * 4;
       // a wave of hops runs along the parade
@@ -107,7 +113,9 @@ export class Title {
       if (p.active && (expr === 'idle' || expr === 'excited')) lx = p.x > r.x + r.size ? 1 : p.x < r.x ? -1 : 0;
       ctx.fillStyle = 'rgba(20,5,40,0.35)';
       ctx.fillRect(r.x + 8, r.y + r.size - 2, r.size - 16, 3);
-      ctx.drawImage(getSprite(m.type, expr, lx, 0), r.x, r.y + Math.round(m.hop), r.size, r.size);
+      const variant = m.quirk > 0 && MONSTERS[m.type].quirks ? (Math.floor(this.time * 8) % 2 ? 'q1' : 'q2') : 'n';
+      const float = m.type === 4 ? Math.round(Math.sin(this.time * 2.2) * 2) : 0;
+      ctx.drawImage(getSprite(m.type, expr, lx, 0, variant), r.x, r.y + Math.round(m.hop) + float, r.size, r.size);
     });
 
     for (const b of this.buttons) b.draw(ctx, this.time);

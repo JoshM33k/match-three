@@ -6,7 +6,7 @@ import { Raster } from './png.mjs';
 
 const S = 6;
 const PAD = 4;
-const rows = [...MONSTERS.map((m) => [m, 'n']), [MONSTERS[0], 'lh'], [MONSTERS[2], 'lv'], [MONSTERS[1], 'b0'], [RAINBOW, 'rb']];
+const rows = [...MONSTERS.map((m) => [m, 'n']), ...MONSTERS.filter((m) => m.quirks).flatMap((m) => [[m, 'q1'], [m, 'q2']]), [MONSTERS[0], 'lh'], [MONSTERS[2], 'lv'], [MONSTERS[1], 'b0'], [RAINBOW, 'rb']];
 const cols = EXPRESSIONS.length + 4;
 const cell = SIZE * S + PAD;
 const r = new Raster(cols * cell + PAD, rows.length * cell + PAD);
