@@ -1,7 +1,7 @@
 // Level map: a winding path of levels you scroll through, with stars earned
 // and a monster bouncing on the level you're up to.
 import { getSprite, MONSTERS } from './sprites.js';
-import { drawText, Button, icon, iconOutlined, fillCircle, panel } from './pixel.js';
+import { drawText, Button, icon, iconOutlined, fillCircle, panel, pattern } from './pixel.js';
 
 const SPACING = 38;
 const NODE_COLORS = MONSTERS.map((m) => [m.colors.b, m.colors.s, m.colors.o]);
@@ -116,6 +116,10 @@ export class LevelMap {
       fillCircle(ctx, x, y, r, '#4a3a68');
       fillCircle(ctx, x, y - 1, r - 1, '#5e4d80');
       icon(ctx, 'lock', x - 2, y - 4, '#9a8abb');
+    }
+    if (n % 5 === 0 && !current) {
+      // boss levels wear a crown
+      pattern(ctx, ['#.#.#.#', '#######', '#######'], x - 3, y - r - 4, { '#': unlocked ? '#ffcf3a' : '#8a7aa8' });
     }
     const stars = this.app.settings.stars[n] || 0;
     if (unlocked && !current) {

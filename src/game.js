@@ -13,7 +13,7 @@ import {
   shuffleGrid,
   key,
 } from './board.js';
-import { getSprite, monsterColor, monsterLight, RAINBOW_COLORS, RAINBOW_FRAMES, EGG_TYPE } from './sprites.js';
+import { getSprite, monsterColor, monsterLight, RAINBOW_COLORS, RAINBOW_FRAMES, EGG_TYPE, MONSTERS } from './sprites.js';
 import { drawText, panel, roundRect, icon, iconOutlined, Button, pixelLine, pixelCircle, textWidth, wrapText, pattern, HAND } from './pixel.js';
 import { getLevel, ROWS, COLS } from './levels.js';
 
@@ -22,6 +22,8 @@ const POP_TIME = 0.3;
 const SWAP_TIME = 0.16;
 const GRAVITY = 75; // cells / s^2
 const MAX_FALL = 18;
+
+const CROWN = ['#.#.#', '#####', '#####'];
 
 const PRAISE = ['YUM!', 'CHOMP!', 'RAWR!', 'MUNCH!', 'MONSTROUS!', 'GOBBLED!', 'SPOOKTACULAR!'];
 const WIN_WORDS = ['YUMMY!', 'DELICIOUS!', 'MONSTROUS!', 'RAWRSOME!'];
@@ -122,6 +124,12 @@ export class Game {
     this.lastSwap = null;
     this.tipT = 0;
     this.tip = levelNum === 1 ? 0 : 1 + (levelNum % (TIPS.length - 1));
+    const b = this.level.boss;
+    this.boss = b
+      ? { type: b.type, hp: b.hp, max: b.hp, shown: b.hp, attackIn: 4, hitT: 0, roarT: 0, deadT: 0, name: 'KING ' + MONSTERS[b.type].name.toUpperCase() }
+      : null;
+    this.zings = [];
+    this.moveDone = false;
     this.layout();
 
     // Monsters tumble in from the top, column by column.
@@ -178,7 +186,7 @@ export class Game {
     const { vw, vh, safeTop, safeBottom } = this.app;
     const top = safeTop + 3;
     const bottom = safeBottom + 3;
-    const hudH = 46;
+    const hudH = this.boss ? 60 : 46;
     const barH = 18;
     const gap = 6;
     let cell = Math.floor((Math.min(vw, 250) - 10) / COLS);
@@ -423,6 +431,7 @@ export class Game {
     const tb = this.grid[b[0]][b[1]];
     if (isSpecialSwap(ta, tb)) {
       this.moves--;
+      this.moveDone = true;
       this.combo = 1;
       const effects = swapEffects(this.grid, a, b);
       const rainbow = ta.special === 'rainbow' || tb.special === 'rainbow';
@@ -447,6 +456,7 @@ export class Game {
       return;
     }
     this.moves--;
+    this.moveDone = true;
     this.combo = 1;
     this.clear(groups);
   }
@@ -481,6 +491,13 @@ export class Game {
       this.showLose();
       return;
     }
+    if (this.boss && this.boss.hp > 0 && this.moveDone) {
+      this.moveDone = false;
+      if (--this.boss.attackIn <= 0) {
+        this.bossAttack();
+        return;
+      }
+    }
     if (!findValidMoves(this.grid).length) {
       this.doShuffle();
       return;
@@ -498,6 +515,7 @@ export class Game {
   }
 
   goalsMet() {
+    if (this.boss && this.boss.hp > 0) return false;
     return this.score >= this.level.target && this.goals.every((g) => g.left <= 0);
   }
 
@@ -565,6 +583,13 @@ export class Game {
             n.jump(-55 - Math.random() * 30);
           }
         }
+      }
+    }
+
+    if (this.boss && this.boss.hp > 0) {
+      for (const { r, c, delay } of res.cleared.values()) {
+        const t = grid[r][c];
+        if (t) this.hitBoss(1, t.x, t.y, monsterColor(t.type), delay + POP_GROW);
       }
     }
 
@@ -737,7 +762,7 @@ export class Game {
     s.best[n] = Math.max(s.best[n] || 0, this.score);
     s.level = Math.max(s.level, n + 1);
     this.app.persist();
-    this.overlay = { kind: 'win', t: 0, stars, shown: 0, word: WIN_WORDS[n % WIN_WORDS.length], best: s.best[n] };
+    this.overlay = { kind: 'win', t: 0, stars, shown: 0, word: this.boss ? 'VICTORY!' : WIN_WORDS[n % WIN_WORDS.length], best: s.best[n] };
     this.setButtons();
     this.eachTile((t) => t.say('happy', 99));
     this.confetti();
@@ -870,12 +895,16 @@ export class Game {
       case 'bonus':
         this.updateBonus(dt);
         break;
+      case 'boss':
+        this.updateBossAttack(dt);
+        break;
       case 'idle':
         this.updateIdle(dt);
         break;
     }
 
     this.updateEffects(dt);
+    this.updateBoss(dt);
     this.shownScore += Math.ceil((this.score - this.shownScore) * Math.min(1, dt * 8));
     if (this.shownScore > this.score) this.shownScore = this.score;
     this.tipT += dt;
@@ -1023,6 +1052,130 @@ export class Game {
     });
   }
 
+  bossCenter() {
+    return { x: this.boardX + 13, y: this.hudY + 26 + 17 };
+  }
+
+  /** Send a damaging spark from a board cell to the boss. */
+  hitBoss(dmg, cx, cy, color, delay) {
+    const b = this.boss;
+    b.hp = Math.max(0, b.hp - dmg);
+    this.zings.push({ sx: cx, sy: cy, t: -delay, dur: 0.45 + Math.random() * 0.2, color, dmg, bend: (Math.random() - 0.5) * 60 });
+  }
+
+  updateBoss(dt) {
+    const b = this.boss;
+    if (!b) return;
+    b.hitT = Math.max(0, b.hitT - dt);
+    b.roarT = Math.max(0, b.roarT - dt);
+    for (const z of this.zings) {
+      z.t += dt;
+      if (z.t >= z.dur && !z.done) {
+        z.done = true;
+        b.shown = Math.max(0, b.shown - z.dmg);
+        b.hitT = 0.18;
+        if (this.audio.throttle('bosshit', 0.06)) this.audio.pop(0.7 + Math.random() * 0.2);
+        const p = this.bossCenter();
+        for (let i = 0; i < 2; i++) {
+          this.particles.push({ x: p.x, y: p.y, vx: (Math.random() - 0.5) * 60, vy: -20 - Math.random() * 30, life: 0, max: 0.35, color: z.color, size: 1, grav: 120, kind: 'sq' });
+        }
+        if (b.shown === 0 && !b.deadT) {
+          b.deadT = 0.0001;
+          this.audio.monster(b.type, 'sad', 0.6);
+          this.audio.boom();
+          this.shakeT = 0.5;
+          this.bigText('BOSS DEFEATED!', '#ffe04a');
+          for (let i = 0; i < 4; i++) this.burstAt(p.x, p.y, RAINBOW_COLORS[i], 8);
+        }
+      }
+    }
+    this.zings = this.zings.filter((z) => !z.done);
+    if (b.deadT) b.deadT += dt;
+  }
+
+  burstAt(x, y, color, n) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const v = 30 + Math.random() * 60;
+      this.particles.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 20, life: 0, max: 0.6, color, size: 2, grav: 120, kind: 'sq' });
+    }
+  }
+
+  /** The boss roars and lays eggs onto the board. */
+  bossAttack() {
+    const b = this.boss;
+    b.attackIn = this.level.n >= 20 ? 3 : 4;
+    b.roarT = 1.1;
+    this.audio.monster(b.type, 'match', 0.55);
+    this.audio.boom();
+    this.shakeT = 0.35;
+    this.bigText(b.name.split(' ')[1] + ' ROARS!', '#ff8fa8');
+    const options = [];
+    this.eachTile((t, r, c) => {
+      if (t.type >= 0 && !t.special) options.push([r, c]);
+    });
+    const count = Math.min(options.length, this.level.n >= 15 ? 3 : 2);
+    this.attackEggs = [];
+    for (let i = 0; i < count; i++) {
+      const [r, c] = options.splice(Math.floor(this.rng() * options.length), 1)[0];
+      this.attackEggs.push([r, c]);
+    }
+    this.attackT = 0;
+    this.state = 'boss';
+  }
+
+  updateBossAttack(dt) {
+    const before = this.attackT;
+    this.attackT += dt;
+    if (before < 0.75 && this.attackT >= 0.75) {
+      for (const [r, c] of this.attackEggs) {
+        const egg = new Tile(EGG_TYPE);
+        egg.hp = 2;
+        egg.x = c;
+        egg.y = r;
+        egg.squash = 0.35;
+        this.grid[r][c] = egg;
+        this.burst(c, r, '#fff4dc', 6);
+        this.effects.push({ kind: 'ring', r, c, t: 0, color: '#fff4dc' });
+      }
+      this.audio.crack(1);
+    }
+    if (this.attackT >= 1.1) {
+      this.attackEggs = null;
+      this.afterSettle();
+    }
+  }
+
+  drawBossAttack(ctx) {
+    if (this.state !== 'boss' || !this.attackEggs || this.attackT >= 0.75) return;
+    const k = ease(this.attackT / 0.75);
+    const p = this.bossCenter();
+    for (const [r, c] of this.attackEggs) {
+      const tx = this.boardX + (c + 0.5) * this.cell;
+      const ty = this.boardY + (r + 0.5) * this.cell;
+      const x = p.x + (tx - p.x) * k;
+      const y = p.y + (ty - p.y) * k - Math.sin(k * Math.PI) * 40;
+      ctx.drawImage(getSprite(EGG_TYPE, 'idle'), Math.round(x - 8), Math.round(y - 8));
+    }
+  }
+
+  drawZings(ctx) {
+    const p = this.bossCenter();
+    for (const z of this.zings) {
+      if (z.t < 0) continue;
+      const k = Math.min(1, z.t / z.dur);
+      const e = k * k;
+      const sx = this.boardX + (z.sx + 0.5) * this.cell;
+      const sy = this.boardY + (z.sy + 0.5) * this.cell;
+      const x = Math.round(sx + (p.x - sx) * e + Math.sin(k * Math.PI) * z.bend);
+      const y = Math.round(sy + (p.y - sy) * e);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(x - 1, y - 1, 3, 3);
+      ctx.fillStyle = z.color;
+      ctx.fillRect(x, y, 1, 1);
+    }
+  }
+
   updateCrack(t, dt) {
     t.crack += dt;
     if (t.crack < 0) return;
@@ -1032,6 +1185,7 @@ export class Game {
     t.shake = 0.3;
     this.score += 30;
     this.burst(t.x, t.y, '#fff4dc', 6);
+    if (this.boss && this.boss.hp > 0) this.hitBoss(2, t.x, t.y, '#fff4dc', 0);
     this.audio.crack(t.hp);
     if (t.hp > 0) return;
     // Hatch! The egg becomes a brand new baby monster.
@@ -1140,6 +1294,8 @@ export class Game {
     this.drawEffects(ctx);
     ctx.restore();
     this.drawFlyers(ctx);
+    this.drawZings(ctx);
+    this.drawBossAttack(ctx);
     this.drawParticles(ctx);
     this.drawTexts(ctx);
     this.drawHand(ctx);
@@ -1469,6 +1625,11 @@ export class Game {
     box(x + w - side, side, 'MOVES', String(Math.max(0, this.moves)), movesColor, low ? '#ff8fa8' : '#ffb3d9');
     box(x + side + 3, w - side * 2 - 6, 'SCORE', String(this.shownScore), '#ffe04a');
 
+    if (this.boss) {
+      this.drawBossPanel(ctx, x, y + 26, w);
+      return;
+    }
+
     // Goals row: score bar with stars, then monsters to collect.
     const gy = y + 26;
     panel(ctx, x, gy, w, 19, '#2d1856', '#140726', 3);
@@ -1501,6 +1662,58 @@ export class Game {
         drawText(ctx, String(g.shown), p.x + 17, gy + 7, { color: '#ffffff', outline: '#140726' });
       }
     });
+  }
+
+  drawBossPanel(ctx, x, y, w) {
+    const b = this.boss;
+    panel(ctx, x, y, w, 34, '#3a1650', '#140726', 3);
+    ctx.fillStyle = 'rgba(255,255,255,0.15)';
+    ctx.fillRect(x + 3, y + 1, w - 6, 1);
+    // the boss itself, twice normal size with a little crown
+    let expr = 'idle';
+    if (b.deadT) expr = 'dizzy';
+    else if (b.roarT > 0) expr = 'excited';
+    else if (b.hitT > 0) expr = 'squish';
+    else if (b.shown < b.max * 0.3) expr = Math.floor(this.time * 2) % 3 ? 'sad' : 'blink';
+    else if (Math.floor(this.time * 0.8) % 5 === 0) expr = 'blink';
+    const shake = b.hitT > 0 || b.roarT > 0 ? Math.round(Math.sin(this.time * 60) * 1.5) : 0;
+    const sink = b.deadT ? Math.min(20, Math.round(b.deadT * 30)) : 0;
+    const bob = b.deadT ? 0 : Math.round(Math.sin(this.time * 2.5) * 1);
+    const bx = x + 3 + shake;
+    const by = y + 1 + bob + sink;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x + 1, y + 1, 34, 32);
+    ctx.clip();
+    ctx.drawImage(getSprite(b.type, expr), bx, by, 32, 32);
+    pattern(ctx, CROWN, bx + 13, by - 1 + (b.type === 1 ? 2 : 0), { '#': '#ffcf3a' });
+    ctx.fillStyle = '#ff5a7a';
+    ctx.fillRect(bx + 15, by + 1 + (b.type === 1 ? 2 : 0), 1, 1);
+    ctx.restore();
+
+    const tx = x + 40;
+    const barW = w - 46;
+    drawText(ctx, b.name, tx, y + 4, { color: '#ffe04a', outline: '#140726' });
+    const hpText = b.shown + '/' + b.max;
+    drawText(ctx, hpText, x + w - 5, y + 4, { color: '#ffffff', align: 'right' });
+    roundRect(ctx, tx, y + 13, barW, 7, 1, '#140726');
+    const fill = Math.round((b.shown / b.max) * (barW - 2));
+    if (fill > 0) {
+      const col = b.shown < b.max * 0.3 ? '#ff5a7a' : '#74e06b';
+      roundRect(ctx, tx + 1, y + 14, fill, 5, 0, col);
+      ctx.fillStyle = 'rgba(255,255,255,0.5)';
+      ctx.fillRect(tx + 1, y + 14, fill, 1);
+    }
+    if (b.hitT > 0 && fill > 0) {
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(tx + fill - 1, y + 14, 2, 5);
+    }
+    if (b.shown > 0) {
+      const warn = b.attackIn <= 1 && Math.floor(this.time * 4) % 2;
+      drawText(ctx, b.attackIn <= 1 ? 'ATTACKS NEXT MOVE!' : 'ATTACKS IN ' + b.attackIn + ' MOVES', tx, y + 24, { color: warn ? '#ff5a7a' : '#c9b6ff' });
+    } else {
+      drawText(ctx, 'DEFEATED!', tx, y + 24, { color: '#ffe04a' });
+    }
   }
 
   /** Level 1 tutorial: a little hand demonstrates the first swipe. */
@@ -1542,7 +1755,9 @@ export class Game {
       panel(ctx, this.boardX - 4 + off, y, this.bw + 8, h, '#ff7eb6', '#140726', 4);
       roundRect(ctx, this.boardX - 2 + off, y + 2, this.bw + 4, h - 4, 3, '#3d2a7f');
       drawText(ctx, 'LEVEL ' + this.level.n, cx + off, y + 7, { color: '#ffe04a', scale: 3, align: 'center', outline: '#140726' });
-      drawText(ctx, 'SCORE ' + this.level.target + ' IN ' + this.level.moves + ' MOVES', cx + off, y + 30, {
+      const goalText = this.boss ? 'DEFEAT ' + this.boss.name + ' IN ' + this.level.moves + ' MOVES' : 'SCORE ' + this.level.target + ' IN ' + this.level.moves + ' MOVES';
+      if (this.boss) drawText(ctx, 'BOSS BATTLE!', cx + off, y - 9, { color: '#ff8fa8', scale: 2, align: 'center', outline: '#140726' });
+      drawText(ctx, goalText, cx + off, y + 30, {
         color: '#ffffff',
         align: 'center',
       });

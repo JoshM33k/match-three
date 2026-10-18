@@ -16,11 +16,13 @@ export function getLevel(n) {
   const perMove = 215;
   const difficulty = Math.min(0.82, 0.4 + n * 0.032);
   const target = Math.round((perMove * moves * difficulty) / 50) * 50;
+  // Every fifth level is a boss battle against a giant crowned monster.
+  const boss = n % 5 === 0 ? { type: (n / 5 - 1) % 6, hp: Math.min(110, 80 + n) } : null;
   const collect = [];
   // every fourth level from 4 has monster eggs to hatch
-  const eggs = n >= 4 && n % 4 === 0 ? Math.min(12, 3 + Math.floor(n / 4)) : 0;
+  const eggs = !boss && n >= 4 && n % 4 === 0 ? Math.min(12, 3 + Math.floor(n / 4)) : 0;
   if (eggs) collect.push({ type: -2, count: eggs });
-  if (n >= 2 && n % 3 !== 1 && collect.length < 2) {
+  if (!boss && n >= 2 && n % 3 !== 1 && collect.length < 2) {
     const kinds = n % 3 === 0 && n >= 3 && !eggs ? 2 : 1;
     const pool = [...Array(types).keys()];
     for (let i = 0; i < kinds; i++) {
@@ -28,12 +30,15 @@ export function getLevel(n) {
       collect.push({ type, count: Math.min(24, 8 + Math.round(n * 0.7)) - (kinds - 1) * 3 });
     }
   }
+  // On boss levels beating the boss is the real goal; the score target is low.
+  const stars = boss ? [Math.round((target * 0.4) / 50) * 50, target, Math.round(target * 1.4)] : [target, Math.round(target * 1.35), Math.round(target * 1.75)];
   return {
     n,
     types,
     moves,
-    target,
-    stars: [target, Math.round(target * 1.35), Math.round(target * 1.75)],
+    target: stars[0],
+    stars,
+    boss,
     collect,
     eggs,
     seed: n * 104729 + Date.now(),

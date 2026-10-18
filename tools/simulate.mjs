@@ -90,7 +90,8 @@ export function play(n, seed, skill = 0.75) {
     score += resolve(grid, rng, lv.types, firstClear(grid, m.a, m.b), tally);
   }
   const collected = lv.collect.filter((g) => g.type >= 0).every((g) => (tally[g.type] || 0) >= g.count);
-  return { score, collected, target: lv.target, stars: lv.stars };
+  const cleared = Object.values(tally).reduce((a, b) => a + b, 0);
+  return { score, collected, cleared, target: lv.target, stars: lv.stars };
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
